@@ -43,7 +43,8 @@
 			"inherits": "dev",
 			"environment": {
 				"CXX_OPTIMIZATION": "-Og",
-				"CXX_DEBUG": "-ggdb"
+				"CXX_DEBUG": "-ggdb",
+				"CXX_SANITIZE": "-fsanitize=undefined -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fsanitize=bounds"
 			}
 		},
 		{

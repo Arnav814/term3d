@@ -1,9 +1,10 @@
 #include "sextantBlocks.hpp"
 
+#include <boost/type_traits/extent.hpp>
 #include <cassert>
 #include <cmath>
+#include <initializer_list>
 #include <unistd.h>
-#include <vector>
 #include <codecvt>
 #include <locale>
 #include <array>
@@ -119,10 +120,29 @@ void testAllSextants() {
 SextantDrawing::SextantDrawing(const int height, const int width) {
 	assertGt(height, 0, "height must be positive");
 	assertGt(width, 0, "width must be positive");
+	this->drawing = drawing_type(boost::extents[height][width]);
+}
+
+SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<PriorityColor>> init) {
+	uint height = init.size();
+	uint width;
 	if (height == 0)
-		throw RescaleException("Cannot create a SextantDrawing with height 0");
-	this->drawing = std::vector<std::vector<PriorityColor>>(height,
-		std::vector<PriorityColor>(width, PriorityColor(0, 0)));
+		width = 0;
+	else
+		width = init.begin()->size();
+
+	this->drawing.resize(boost::extents[height][width]);
+
+	int x, y = 0;
+	for (const auto& list: init) {
+		assertEq(width, list.size(), "All sub-lists must have the same size");
+		x = 0;
+		for (const auto& elem: list) {
+			this->set(SextantCoord(y, x), elem);
+			x++;
+		}
+		y++;
+	}
 }
 
 [[nodiscard]] PriorityColor SextantDrawing::get(const SextantCoord& coord) const {
@@ -136,14 +156,6 @@ SextantDrawing::SextantDrawing(const int height, const int width) {
 		return fallback;
 	else
 		return this->get(coord);
-}
-
-void SextantDrawing::clear() {
-	for (int y = 0; y < this->getHeight(); y++) {
-		for (int x = 0; x < this->getWidth(); x++) {
-			this->drawing[y][x] = PriorityColor(0, 0);
-		}
-	}
 }
 
 void SextantDrawing::set(const SextantCoord& coord, const PriorityColor setTo) {
@@ -163,13 +175,16 @@ void SextantDrawing::trySet(const SextantCoord& coord, const PriorityColor setTo
 	return CoordIterator(SextantCoord(0, 0), SextantCoord(this->getHeight()-1, this->getWidth()-1));
 }
 
-void SextantDrawing::resize(int newY, int newX) {
-	if (newY == 0)
-		throw RescaleException("Cannot resize a SextantDrawing to height 0");
-	this->drawing.resize(newY);
-	for (int y = 0; y < this->getHeight(); y++) {
-		this->drawing[y].resize(newX);
+void SextantDrawing::clear() {
+	for (SextantCoord coord: this->getIterator()) {
+		this->set(coord, PriorityColor(0, 0));
 	}
+}
+
+void SextantDrawing::resize(int newY, int newX) {
+	assertGtEq(newY, 0, "height must be positive");
+	assertGtEq(newX, 0, "width must be positive");
+	this->drawing.resize(boost::extents[newY][newX]);
 }
 
 charArray<PriorityColor> SextantDrawing::getChar(const SextantCoord& topLeft) const {
@@ -245,35 +260,16 @@ std::pair<colorType, colorType> getTrimmedColors(const charArray<PriorityColor>&
 		// prefer setting bg over fg -- a space is 1/4 the bytes of a filled block
 	}
 
-	/*if ((colors.first == COLOR_YELLOW || colors.second == COLOR_YELLOW)
-		&& (arrayChar[0][0].color != COLOR_YELLOW
-		||  arrayChar[0][1].color != COLOR_YELLOW
-		||  arrayChar[0][2].color != COLOR_YELLOW
-		||  arrayChar[1][0].color != COLOR_YELLOW
-		||  arrayChar[1][1].color != COLOR_YELLOW
-		||  arrayChar[1][2].color != COLOR_YELLOW)) {
-		raise(SIGINT);
-	}*/
-
 	return colors;
 }
 
 void SextantDrawing::render(const CharCoord& topLeft) const {
-	//print2DVector(this->drawing);
 	static std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_conv;
 	for (int y = 0; y < this->getHeight(); y += 3) {
 		for (int x = 0; x < this->getWidth(); x += 2) {
 			charArray<PriorityColor> asArray = getChar(SextantCoord(y, x));
 			std::pair<colorType, colorType> colors = getTrimmedColors(asArray);
 			charArray<bool> trimmed;
-
-			//string myString = "";
-			//myString += to_string(colors.first);
-			//myString += " ";
-			//myString += to_string(colors.second);
-
-			//attrset(getColorPair(COLOR_GREEN, COLOR_BLACK));
-			//mvaddstr(10, 12, myString.c_str());
 
 			for (unsigned int x = 0; x < asArray.size(); x++) {
 				for (unsigned int y = 0; y < asArray[x].size(); y++) {

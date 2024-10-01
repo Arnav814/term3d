@@ -2,9 +2,8 @@
 #define SEXTANTBLOCKS_HPP
 
 #include <array>
-#include <string>
-#include <stdexcept>
-#include <vector>
+#include <boost/multi_array.hpp>
+#include <initializer_list>
 
 #include "../extraAssertions.hpp"
 #include "coord2d.hpp"
@@ -21,25 +20,24 @@ struct PriorityColor {
 	PriorityColor(colorType color, priorityType priority) {
 		this->color = color; this->priority = priority;
 	}
-};
 
-class RescaleException : public std::runtime_error {
-	public:
-		RescaleException(std::string error) : std::runtime_error(error.c_str()) {} ;
+	PriorityColor() {
+		this->color = 0; this->priority = 0;
+	}
 };
 
 void testAllSextants();
 
+typedef boost::multi_array<PriorityColor, 2> drawing_type;
+
 class SextantDrawing {
 	private:
-		std::vector<std::vector<PriorityColor>> drawing;
+		drawing_type drawing;
 		[[nodiscard]] PriorityColor getWithFallback(const SextantCoord& coord, const PriorityColor fallback) const;
 		[[nodiscard]] charArray<PriorityColor> getChar(const SextantCoord& topLeft) const;
 	
 	public:
-		SextantDrawing(const std::vector<std::vector<PriorityColor>>& setDrawing) {
-			this->drawing = setDrawing;
-		}
+		SextantDrawing(std::initializer_list<std::initializer_list<PriorityColor>> init);
 		SextantDrawing(const int height, const int width);
 		[[nodiscard]] int getWidth() const {return this->drawing[0].size();}
 		[[nodiscard]] int getHeight() const {return this->drawing.size();}

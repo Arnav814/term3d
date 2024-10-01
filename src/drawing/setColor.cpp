@@ -1,10 +1,15 @@
 #include "setColor.hpp"
 
 #include <unordered_map>
-#include <utility>
 #include <limits>
 #include <stdexcept>
-#include <ncursesw/curses.h>
+#include <curses.h>
+
+template <> struct std::hash<std::pair<unsigned char, unsigned char>> {
+	size_t operator()(const pair<unsigned char, unsigned char> chPair) const {
+		return (size_t) (chPair.first >> 8) | chPair.second;
+	}
+};
 
 namespace ColorCache {
 	short next = 0;
