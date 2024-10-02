@@ -19,7 +19,7 @@ inline void printTrace() {
 #ifndef NDEBUG
 
 	// this one was mostly copied from https://stackoverflow.com/questions/3767869/adding-message-to-assert
-	#define assertMessage(condition, message) \
+	#define assertMsg(condition, message) \
 		do { \
 			if (!(condition)) { \
 				std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
@@ -33,6 +33,16 @@ inline void printTrace() {
 		do { \
 			if (!((value) == (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") equal to `" #target "` (" << target << ") failed in " \
+					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
+				printTrace(); \
+				std::terminate(); \
+			} \
+		} while (false)
+
+	#define assertNotEq(value, target, message) \
+		do { \
+			if (!((value) != (target))) { \
+				std::cerr << "Assertion `" #value "` (" << value << ") not equal to `" #target "` (" << target << ") failed in " \
 					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
 				printTrace(); \
 				std::terminate(); \
@@ -104,6 +114,7 @@ inline void printTrace() {
 
 	#define assertMessage(condition, message) do { } while (false)
 	#define assertEq(value, target, message) do { } while (false)
+	#define assertNotEq(value, target, message) do { } while (false)
 	#define assertGt(value, target, message) do { } while (false)
 	#define assertGtEq(value, target, message) do { } while (false)
 	#define assertLt(value, target, message) do { } while (false)

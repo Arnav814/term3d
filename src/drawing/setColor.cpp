@@ -7,12 +7,12 @@
 
 template <> struct std::hash<std::pair<unsigned char, unsigned char>> {
 	size_t operator()(const pair<unsigned char, unsigned char> chPair) const {
-		return (size_t) (chPair.first >> 8) | chPair.second;
+		return (size_t) (chPair.first << 8) | chPair.second;
 	}
 };
 
 namespace ColorCache {
-	short next = 0;
+	short next = 64; // in case I want to use normal color pairs for anything
 	std::unordered_map<std::pair<unsigned char, unsigned char>, short> storedColors;
 };
 

@@ -118,8 +118,8 @@ void testAllSextants() {
 }
 
 SextantDrawing::SextantDrawing(const int height, const int width) {
-	assertGt(height, 0, "height must be positive");
-	assertGt(width, 0, "width must be positive");
+	assertGtEq(height, 0, "height must be positive");
+	assertGtEq(width, 0, "width must be positive");
 	this->drawing = drawing_type(boost::extents[height][width]);
 }
 
@@ -255,15 +255,36 @@ std::pair<colorType, colorType> getTrimmedColors(const charArray<PriorityColor>&
 		}
 	}
 
-	if (colors.second == 0) {
-		std::swap(colors.first, colors.second);
-		// prefer setting bg over fg -- a space is 1/4 the bytes of a filled block
-	}
+	// prefer setting bg over fg -- a space is 1/4 the bytes of a filled block
+	//if (colors.second == 0)
+		//std::swap(colors.first, colors.second);
 
 	return colors;
 }
 
-void SextantDrawing::render(const CharCoord& topLeft) const {
+void SextantDrawing::debugPrint() const {
+	for (int y = 0; y < this->getHeight(); y++) {
+		for (int x = 0; x < this->getWidth(); x++) {
+			std::cerr << (this->drawing[y][x].color ? "█" : " ");
+		}
+		std::cerr << '\n';
+	}
+	std::cerr << std::flush;
+}
+
+WindowedDrawing::WindowedDrawing(WINDOW* win) : SextantDrawing(0, 0) {
+	this->win = win;
+	assertMsg(win != NULL, "win cannot be null");
+	this->autoRescale();
+}
+
+void WindowedDrawing::autoRescale() {
+	int maxX, maxY;
+	getmaxyx(win, maxX, maxY);
+	this->resize(maxY*3, maxX*2);
+}
+
+void WindowedDrawing::render() const {
 	static std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_conv;
 	for (int y = 0; y < this->getHeight(); y += 3) {
 		for (int x = 0; x < this->getWidth(); x += 2) {
@@ -282,18 +303,10 @@ void SextantDrawing::render(const CharCoord& topLeft) const {
 			}
 
 			attrset(getColorPair(colors.first, colors.second));
-			mvaddstr(round((double) y/3) + topLeft.y, round((double) x/2) + topLeft.x,
-					 utf8_conv.to_bytes(sextantMap[packArray(trimmed)]).c_str());
+			//std::cerr << "p(" << std::to_string(y/3) << ", " << std::to_string(x/2) << ") " <<
+				//std::to_string(colors.first) << " " << std::to_string(colors.second) << '\n';
+			mvaddstr(y / 3, x / 2, utf8_conv.to_bytes(sextantMap[packArray(trimmed)]).c_str());
 		}
 	}
 }
 
-void SextantDrawing::debugPrint() const {
-	for (int y = 0; y < this->getHeight(); y++) {
-		for (int x = 0; x < this->getWidth(); x++) {
-			std::cerr << (this->drawing[y][x].color ? "█" : " ");
-		}
-		std::cerr << '\n';
-	}
-	std::cerr << std::flush;
-}

@@ -1,9 +1,6 @@
 #ifndef SETCOLOR_HPP
 #define SETCOLOR_HPP
 
-#include <utility>
-#include <unordered_map>
-
 // this file is just jank to work around ncurses color pairs.
 // we can only use color pairs, so if we want to set fg and bg colors individually, 
 // we need to dynamically create more color pairs

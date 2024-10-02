@@ -4,6 +4,7 @@
 #include <array>
 #include <boost/multi_array.hpp>
 #include <initializer_list>
+#include <curses.h>
 
 #include "../extraAssertions.hpp"
 #include "coord2d.hpp"
@@ -27,12 +28,15 @@ struct PriorityColor {
 };
 
 void testAllSextants();
+std::pair<colorType, colorType> getTrimmedColors(const charArray<PriorityColor>& arrayChar);
 
 typedef boost::multi_array<PriorityColor, 2> drawing_type;
 
 class SextantDrawing {
 	private:
 		drawing_type drawing;
+
+	protected:
 		[[nodiscard]] PriorityColor getWithFallback(const SextantCoord& coord, const PriorityColor fallback) const;
 		[[nodiscard]] charArray<PriorityColor> getChar(const SextantCoord& topLeft) const;
 	
@@ -48,10 +52,17 @@ class SextantDrawing {
 		void trySet(const SextantCoord& coord, const PriorityColor setTo);
 		void resize(int newY, int newX);
 		void insert(const SextantCoord& topLeft, const SextantDrawing& toCopy, const OverrideStyle overrideStyle);
-		void render(const CharCoord& topLeft) const;
 		void debugPrint() const;
 };
 
-std::pair<colorType, colorType> getTrimmedColors(const charArray<PriorityColor>& arrayChar);
+class WindowedDrawing : public SextantDrawing {
+	private:
+		WINDOW* win;
+
+	public:
+		WindowedDrawing(WINDOW* win);
+		void autoRescale();
+		void render() const;
+};
 
 #endif /* SEXTANTBLOCKS_HPP */
