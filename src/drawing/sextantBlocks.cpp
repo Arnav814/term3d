@@ -123,7 +123,7 @@ SextantDrawing::SextantDrawing(const int height, const int width) {
 	this->drawing = drawing_type(boost::extents[height][width]);
 }
 
-SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<PriorityColor>> init) {
+SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<Color>> init) {
 	uint height = init.size();
 	uint width;
 	if (height == 0)
@@ -145,26 +145,26 @@ SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<Prior
 	}
 }
 
-[[nodiscard]] PriorityColor SextantDrawing::get(const SextantCoord& coord) const {
+[[nodiscard]] Color SextantDrawing::get(const SextantCoord& coord) const {
 	assertBetweenHalfOpen(0, coord.y, this->getHeight(), "Height out of range in get");
 	assertBetweenHalfOpen(0, coord.x, this->getWidth(), "Width out of range in get");
 	return this->drawing[coord.y][coord.x];
 }
 
-[[nodiscard]] PriorityColor SextantDrawing::getWithFallback(const SextantCoord& coord, const PriorityColor fallback) const {
+[[nodiscard]] Color SextantDrawing::getWithFallback(const SextantCoord& coord, const Color fallback) const {
 	if (coord.y < 0 || coord.y >= getHeight() || coord.x < 0 || coord.x >= getWidth())
 		return fallback;
 	else
 		return this->get(coord);
 }
 
-void SextantDrawing::set(const SextantCoord& coord, const PriorityColor setTo) {
+void SextantDrawing::set(const SextantCoord& coord, const Color setTo) {
 	assertBetweenHalfOpen(0, coord.y, (int) this->drawing.size(), "Height out of range in set");
 	assertBetweenHalfOpen(0, coord.x, (int) this->drawing[coord.y].size(), "Width out of range in set");
 	this->drawing[coord.y][coord.x] = setTo;
 }
 
-void SextantDrawing::trySet(const SextantCoord& coord, const PriorityColor setTo) {
+void SextantDrawing::trySet(const SextantCoord& coord, const Color setTo) {
 	if (coord.y < 0 || coord.y >= getHeight() || coord.x < 0 || coord.x >= getWidth())
 		return;
 	else
@@ -177,7 +177,7 @@ void SextantDrawing::trySet(const SextantCoord& coord, const PriorityColor setTo
 
 void SextantDrawing::clear() {
 	for (SextantCoord coord: this->getIterator()) {
-		this->set(coord, PriorityColor(0, 0));
+		this->set(coord, Color());
 	}
 }
 
@@ -187,85 +187,65 @@ void SextantDrawing::resize(int newY, int newX) {
 	this->drawing.resize(boost::extents[newY][newX]);
 }
 
-charArray<PriorityColor> SextantDrawing::getChar(const SextantCoord& topLeft) const {
+charArray<Color> SextantDrawing::getChar(const SextantCoord& topLeft) const {
 	return {{
 		{{
-			getWithFallback(topLeft, PriorityColor(0, 0)),
-			getWithFallback(topLeft + SextantCoord(1, 0), PriorityColor(0, 0)),
-			getWithFallback(topLeft + SextantCoord(2, 0), PriorityColor(0, 0))
+			get(topLeft),
+			get(topLeft + SextantCoord(1, 0)),
+			get(topLeft + SextantCoord(2, 0))
 		}},
 		{{
-			getWithFallback(topLeft + SextantCoord(0, 1), PriorityColor(0, 0)),
-			getWithFallback(topLeft + SextantCoord(1, 1), PriorityColor(0, 0)),
-			getWithFallback(topLeft + SextantCoord(2, 1), PriorityColor(0, 0))
+			get(topLeft + SextantCoord(0, 1)),
+			get(topLeft + SextantCoord(1, 1)),
+			get(topLeft + SextantCoord(2, 1))
 		}}
 	}};
 }
 
 // copies toCopy onto this drawing
-void SextantDrawing::insert(const SextantCoord& topLeft, const SextantDrawing& toCopy,
-                            const OverrideStyle overrideStyle = OverrideStyle::Priority) {
+void SextantDrawing::insert(const SextantCoord& topLeft, const SextantDrawing& toCopy) {
 	//cerr << topLeft.x << ' ' << topLeft.y << ';' << toCopy.getWidth() << ' ' << toCopy.getHeight() << endl;
 	assertGtEq(topLeft.x, 0, "Top left must be greater than or equal to 0");
 	assertGtEq(topLeft.y, 0, "Top left must be greater than or equal to 0");
 	for (SextantCoord coord: CoordIterator(SextantCoord(0, 0),
 			SextantCoord(std::min(this->getHeight() - topLeft.y - 1, toCopy.getHeight() - 1),
 			             std::min(this->getWidth() - topLeft.x - 1, toCopy.getWidth() - 1)))) {
-		bool doSet;
+		Color newColor = toCopy.get(coord);
+		Color oldColor = this->get(coord);
 
-		switch (overrideStyle) {
-			case OverrideStyle::Always:
-				doSet = true;
-				break;
-			case OverrideStyle::Nonzero:
-				doSet = this->get(topLeft + coord).priority == 0;
-				break;
-			case OverrideStyle::Priority:
-				doSet = this->get(topLeft + coord).priority < toCopy.get(coord).priority;
-				break;
-			default:
-				assert(false); // makes GCC shut up
-		}
+		uchar alpha = newColor.color.a + oldColor.color.a * (1 - newColor.color.a);
+		#define TRANSFORM_COLOR(channel) (((float) newColor.color.channel * newColor.color.a + (float) oldColor.color.channel * oldColor.color.a * (1 - newColor.color.a)) / alpha)
+		uchar red = TRANSFORM_COLOR(r);
+		uchar green = TRANSFORM_COLOR(g);
+		uchar blue = TRANSFORM_COLOR(b);
+		#undef TRANSFORM_COLOR
+		RGBA color = RGBA(red, green, blue, alpha);
 
-		if (doSet)
-			this->set(topLeft + coord, toCopy.get(coord));
+		// decide whether to use the old category or new category based on alpha
+		Category category;
+		// if it's mostly newColor, use newColor, otherwise use oldColor
+		if (newColor.color.a > std::min<uchar>(128, oldColor.color.a))
+			category = newColor.category;
+		else
+			category = oldColor.category;
+
+		this->set(topLeft + coord, Color(category, color));
 	}
 }
 
-std::pair<colorType, colorType> getTrimmedColors(const charArray<PriorityColor>& arrayChar) {
-	std::pair<priorityType, priorityType> priorities = std::make_pair(0, 0);
-	std::pair<colorType, colorType> colors = std::make_pair(0, 0);
-
-	for (auto a: arrayChar) {
-		for (PriorityColor b: a) {
-			// TODO: this doesn't handle PriorityColors with the
-			// same color and different priorities very well.
-			if (b.color != colors.first && b.color != colors.second) {
-				if (b.priority > priorities.first) {
-					colors.second = colors.first;
-					priorities.second = priorities.first;
-
-					colors.first = b.color;
-					priorities.first = b.priority;
-				} else if (b.priority > priorities.second) {
-					colors.second = b.color;
-					priorities.second = b.priority;
-				}
-			}
-		}
-	}
-
-	// prefer setting bg over fg -- a space is 1/4 the bytes of a filled block
-	//if (colors.second == 0)
-		//std::swap(colors.first, colors.second);
-
-	return colors;
+/*
+ * Trim the colors used to fg and bg for display
+ *
+ * @return array with fg and bg and a color pair
+ */
+std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar) {
+	// TODO: rewrite
 }
 
 void SextantDrawing::debugPrint() const {
 	for (int y = 0; y < this->getHeight(); y++) {
 		for (int x = 0; x < this->getWidth(); x++) {
-			std::cerr << (this->drawing[y][x].color ? "█" : " ");
+			std::cerr << (this->drawing[y][x].color.a == 255 ? "█" : " ");
 		}
 		std::cerr << '\n';
 	}
@@ -288,24 +268,13 @@ void WindowedDrawing::render() const {
 	static std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_conv;
 	for (int y = 0; y < this->getHeight(); y += 3) {
 		for (int x = 0; x < this->getWidth(); x += 2) {
-			charArray<PriorityColor> asArray = getChar(SextantCoord(y, x));
-			std::pair<colorType, colorType> colors = getTrimmedColors(asArray);
-			charArray<bool> trimmed;
+			charArray<Color> asArray = getChar(SextantCoord(y, x));
+			std::pair<charArray<bool>, int> trimmed = getTrimmedColors(asArray);
 
-			for (unsigned int x = 0; x < asArray.size(); x++) {
-				for (unsigned int y = 0; y < asArray[x].size(); y++) {
-					if (asArray[x][y].color == colors.first) {
-						trimmed[x][y] = true;
-					} else {
-						trimmed[x][y] = false;
-					}
-				}
-			}
-
-			attrset(getColorPair(colors.first, colors.second));
+			attrset(trimmed.second);
 			//std::cerr << "p(" << std::to_string(y/3) << ", " << std::to_string(x/2) << ") " <<
 				//std::to_string(colors.first) << " " << std::to_string(colors.second) << '\n';
-			mvaddstr(y / 3, x / 2, utf8_conv.to_bytes(sextantMap[packArray(trimmed)]).c_str());
+			mvaddstr(y / 3, x / 2, utf8_conv.to_bytes(sextantMap[packArray(trimmed.first)]).c_str());
 		}
 	}
 }

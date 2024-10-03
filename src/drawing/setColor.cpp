@@ -16,6 +16,9 @@ namespace ColorCache {
 	std::unordered_map<std::pair<unsigned char, unsigned char>, short> storedColors;
 };
 
+// this function is just jank to work around ncurses color pairs.
+// we can only use color pairs, so if we want to set fg and bg colors individually, 
+// we need to dynamically create more color pairs
 int getColorPair(unsigned char fg, unsigned char bg) {
 	using namespace ColorCache;
 	auto tryFind = storedColors.find(std::make_pair(fg, bg));

@@ -4,6 +4,10 @@
 #include <iostream>
 #include <execinfo.h>
 
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+
 inline void printTrace() {
 	std::cerr << "Traceback:" << '\n';
 	void* callstack[128];
