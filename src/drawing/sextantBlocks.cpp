@@ -17,6 +17,7 @@
 #include "coord2d.hpp"
 #include "../extraAssertions.hpp"
 #include "setColor.hpp"
+#include "quantizeChars.hpp"
 
 char packArray(charArray<bool>& myArray) {
 	return (
@@ -231,15 +232,6 @@ void SextantDrawing::insert(const SextantCoord& topLeft, const SextantDrawing& t
 
 		this->set(topLeft + coord, Color(category, color));
 	}
-}
-
-/*
- * Trim the colors used to fg and bg for display
- *
- * @return array with fg and bg and a color pair
- */
-std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar) {
-	// TODO: rewrite
 }
 
 void SextantDrawing::debugPrint() const {

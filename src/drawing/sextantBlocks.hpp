@@ -10,10 +10,7 @@
 #include "coord2d.hpp"
 #include "setColor.hpp"
 
-template <typename storeAs> using charArray = std::array<std::array<storeAs, 3>, 2>;
-
 void testAllSextants();
-std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar);
 
 typedef boost::multi_array<Color, 2> drawing_type;
 

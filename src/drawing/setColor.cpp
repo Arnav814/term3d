@@ -5,30 +5,51 @@
 #include <stdexcept>
 #include <curses.h>
 
-template <> struct std::hash<std::pair<unsigned char, unsigned char>> {
-	size_t operator()(const pair<unsigned char, unsigned char> chPair) const {
+template <> struct std::hash<std::pair<uchar, uchar>> {
+	size_t operator()(const pair<uchar, uchar> chPair) const {
 		return (size_t) (chPair.first << 8) | chPair.second;
 	}
 };
 
 namespace ColorCache {
-	short next = 64; // in case I want to use normal color pairs for anything
-	std::unordered_map<std::pair<unsigned char, unsigned char>, short> storedColors;
+	short nextPair = 64; // in case I want to use normal color pairs for anything
+	std::unordered_map<std::pair<uchar, uchar>, short> storedColorPairs;
+
+	short nextColor = 64; // same reason
+	std::unordered_map<RGB, short> storedColors;
 };
+
+// jank to work around ncurses not allowing direct rgb control
+short getColor(const RGB color) {
+	using namespace ColorCache;
+	auto tryFind = storedColors.find(color);
+	if (tryFind == storedColors.end()) {
+		if (nextColor == std::numeric_limits<decltype(nextColor)>::max())
+			throw std::runtime_error("Reached maximium number of colors.");
+		nextColor++;
+		#define SCALE(val) ((short) val * (1000/255))
+		init_color(nextColor, SCALE(color.r), SCALE(color.g), SCALE(color.b));
+		#undef SCALE
+		storedColors.insert(std::make_pair(color, nextColor));
+		return nextColor;
+	} else [[likely]] {
+		return tryFind->second;
+	}
+}
 
 // this function is just jank to work around ncurses color pairs.
 // we can only use color pairs, so if we want to set fg and bg colors individually, 
 // we need to dynamically create more color pairs
-int getColorPair(unsigned char fg, unsigned char bg) {
+int getColorPair(const uchar fg, const uchar bg) {
 	using namespace ColorCache;
-	auto tryFind = storedColors.find(std::make_pair(fg, bg));
-	if (tryFind == storedColors.end()) {
-		if (next == std::numeric_limits<decltype(next)>::max())
+	auto tryFind = storedColorPairs.find(std::make_pair(fg, bg));
+	if (tryFind == storedColorPairs.end()) {
+		if (nextPair == std::numeric_limits<decltype(nextPair)>::max())
 			throw std::runtime_error("Reached maximium number of color_pairs.");
-		next++;
-		init_pair(next, fg, bg);
-		storedColors.insert(std::make_pair(std::make_pair(fg, bg), next));
-		return COLOR_PAIR(next);
+		nextPair++;
+		init_pair(nextPair, fg, bg);
+		storedColorPairs.insert(std::make_pair(std::make_pair(fg, bg), nextPair));
+		return COLOR_PAIR(nextPair);
 	} else [[likely]] {
 		return COLOR_PAIR(tryFind->second);
 	}

@@ -2,6 +2,9 @@
 #define SETCOLOR_HPP
 
 #include "../extraAssertions.hpp"
+#include <array>
+
+template <typename storeAs> using charArray = std::array<std::array<storeAs, 3>, 2>;
 
 struct Category {
 	bool allowMixing : 1;
@@ -13,9 +16,10 @@ struct Category {
 		this->categoryId = categoryId;
 	}
 
-	Category() {
-		Category(false, 0);
-	}
+	Category() : Category(false, 0) { }
+
+	bool operator==(const Category& other) const = default;
+	bool operator!=(const Category& other) const = default;
 };
 
 struct RGB {
@@ -29,21 +33,44 @@ struct RGB {
 		this->b = blue;
 	}
 
-	RGB() {
-		RGB(0, 0, 0);
+	RGB() : RGB(0, 0, 0) { }
+
+	bool operator==(const RGB& other) const = default;
+	bool operator!=(const RGB& other) const = default;
+};
+
+template <> struct std::hash<RGB> {
+	size_t operator()(const RGB rgb) const {
+		static_assert(sizeof(size_t) >= 3);
+		return (size_t) (rgb.r << 16) | (rgb.g << 8) | rgb.b;
 	}
 };
 
-struct RGBA : public RGB {
+struct RGBA {
+	uchar r;
+	uchar g;
+	uchar b;
 	uchar a;
 
-	RGBA(uchar red, uchar green, uchar blue, uchar alpha) : RGB(red, green, blue) {
+	RGBA(uchar red, uchar green, uchar blue, uchar alpha) {
+		this->r = red;
+		this->g = green;
+		this->b = blue;
 		this->a = alpha;
 	}
 
-	RGBA() {
-		RGBA(0, 0, 0, 0);
+	RGBA() : RGBA(0, 0, 0, 0) { }
+
+	RGB applyAlpha() const {
+		return RGB(
+			this->r * ((float) this->a / 255),
+			this->g * ((float) this->a / 255),
+			this->b * ((float) this->a / 255)
+		);
 	}
+
+	bool operator==(const RGBA& other) const = default;
+	bool operator!=(const RGBA& other) const = default;
 };
 
 struct Color {
@@ -59,8 +86,12 @@ struct Color {
 		this->category = Category();
 		this->color = RGBA();
 	}
+
+	bool operator==(const Color& other) const = default;
+	bool operator!=(const Color& other) const = default;
 };
 
-int getColorPair(unsigned char fg, unsigned char bg);
+short getColor(const RGB color);
+int getColorPair(const uchar fg, const uchar bg);
 
 #endif /* SETCOLOR_HPP */

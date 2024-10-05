@@ -9,7 +9,7 @@
 struct CharCoord {
 	int y; int x;
 
-	CharCoord() {}
+	CharCoord() : CharCoord(0, 0) { }
 
 	CharCoord(const int y, const int x) {
 		this->y = y;
@@ -44,7 +44,7 @@ struct CharCoord {
 struct SextantCoord {
 	int y; int x;
 
-	SextantCoord() {}
+	SextantCoord() : SextantCoord(0, 0) { }
 
 	SextantCoord(const int y, const int x) {
 		this->y = y;
