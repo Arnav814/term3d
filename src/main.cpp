@@ -12,17 +12,19 @@ int main() {
 	nodelay(stdscr, true); // don't block for input
 	start_color();
 
-	#define F Color(Category(false, 1), RGBA(255, 255, 255, 255))
-	#define O Color(Category(false, 1), RGBA(0, 0, 0, 255))
-	#define R Color(Category(false, 1), RGBA(0, 255, 0, 255))
+	#define A Color(Category(false, 1), RGBA(255, 255, 255, 255))
+	#define B Color(Category(false, 1), RGBA(0, 0, 0, 255))
+	#define C Color(Category(false, 2), RGBA(0, 255, 0, 255))
+	#define D Color(Category(false, 2), RGBA(0, 1, 255, 255))
 	SextantDrawing drawing({
-		{F,F,O,O,F,F,F,R},
-		{R,F,F,F,F,O,F,F},
-		{O,F,F,F,F,F,F,F}
+		{B,A,A,A,C,D,C,A},
+		{B,A,A,B,C,D,A,A},
+		{A,A,C,D,C,D,A,A}
 	});
-	#undef F
-	#undef O
-	#undef R
+	#undef A
+	#undef B
+	#undef C
+	#undef D
 	
 	WindowedDrawing finalDrawing(stdscr);
 	finalDrawing.clear();

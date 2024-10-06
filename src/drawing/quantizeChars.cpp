@@ -1,5 +1,6 @@
 #include "quantizeChars.hpp"
 
+#include <csignal>
 #include <limits>
 #include <vector>
 #include <algorithm>
@@ -16,14 +17,12 @@ bool categoryCompare(const Category a, const Category b) {
 		return a.allowMixing < b.allowMixing;
 }
 
-std::vector<Category> rankCategories(const charArray<Color>& arrayChar) {
+std::vector<Category> rankCategories(const std::vector<Color>& colors) {
 	std::vector<Category> categories;
-	categories.reserve(6);
-	for (const auto& subarray: arrayChar) {
-		for (const Color color: subarray) {
-			if (std::find(categories.begin(), categories.end(), color.category) == categories.end())
-				categories.push_back(color.category);
-		}
+	categories.reserve(std::min<ushort>(10, colors.size())); // cap it at 10
+	for (const Color color: colors) {
+		if (std::find(categories.begin(), categories.end(), color.category) == categories.end())
+			categories.push_back(color.category);
 	}
 
 	std::sort(categories.begin(), categories.end(), categoryCompare); // highest priority first
@@ -31,14 +30,12 @@ std::vector<Category> rankCategories(const charArray<Color>& arrayChar) {
 	return categories;
 }
 
-std::vector<RGBA> getColorsByCategory(const Category category, const charArray<Color>& arrayChar) {
+std::vector<RGBA> filterColorsByCategory(const Category category, const std::vector<Color>& input) {
 	std::vector<RGBA> colors;
-	colors.reserve(6);
-	for (const auto& subarray: arrayChar) {
-		for (const Color color: subarray) {
-			if (color.category == category) {
-				colors.push_back(color.color);
-			}
+	colors.reserve(std::min<size_t>(10, input.size())); // cap it at 10
+	for (const Color color: input) {
+		if (color.category == category) {
+			colors.push_back(color.color);
 		}
 	}
 
@@ -136,32 +133,55 @@ std::vector<std::pair<RGBA, ushort>> generateColorHistogram(const std::vector<RG
 }
 
 /*
+ * Converts a charArray with color to a bool charArray using the specifies colors
+ * 
+ * Anything that isn't one of colors is assumed to be colors.second
+ * @return a charArray<bool> where true indicates colors.first and false indicates colors.second
+ */
+charArray<bool> getBoolCharArray(const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
+	charArray<bool> output;
+	for (uchar x = 0; x < arrayChar.size(); x++) {
+		for (uchar y = 0; y < arrayChar[0].size(); y++) {
+			if (arrayChar[x][y].color.applyAlpha() == colors.first)
+				output[x][y] = true;
+			else
+				output[x][y] = false;
+		}
+	}
+	return output;
+}
+
+/*
  * Trim the colors used to fg and bg for display
  *
  * @return array with fg and bg and a color pair
  */
 std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar) {
-	std::vector rankedCategories = rankCategories(arrayChar);
+	std::vector<Color> flattened = flattenCharArray(arrayChar);
+	std::vector<Category> rankedCategories = rankCategories(flattened);
 	std::pair<RGB, RGB> finalColors = std::make_pair(RGB(), RGB());
 	#define RETCOLORS getColorPair(getColor(finalColors.first), getColor(finalColors.second))
 
 	if (rankedCategories.size() == 1 && not rankedCategories.at(0).allowMixing) {
-		auto histogram = generateColorHistogram(extractRGBA(flattenCharArray(arrayChar)));
+		auto histogram = generateColorHistogram(extractRGBA(flattened));
 		finalColors.first = histogram.at(0).first.applyAlpha();
 		if (histogram.size() >= 2)
 			finalColors.second = histogram.at(1).first.applyAlpha();
 		
-		charArray<bool> output;
-		for (uchar x = 0; x < arrayChar.size(); x++) {
-			for (uchar y = 0; y < arrayChar[0].size(); y++) {
-				if (arrayChar[x][y].color.applyAlpha() == finalColors.first)
-					output[x][y] = true;
-				else
-					output[x][y] = false;
-			}
-		}
+		return std::make_pair(getBoolCharArray(finalColors, arrayChar), RETCOLORS);
+	} else if (rankedCategories.size() >= 2 &&
+			not rankedCategories.at(0).allowMixing &&
+			not rankedCategories.at(0).allowMixing) {
 
-		return std::make_pair(output, RETCOLORS);
+		auto histogram1 = generateColorHistogram(filterColorsByCategory(
+			rankedCategories.at(0), flattened));
+		auto histogram2 = generateColorHistogram(filterColorsByCategory(
+			rankedCategories.at(1), flattened));
+
+		finalColors.first = histogram1.at(0).first.applyAlpha();
+		finalColors.second = histogram2.at(0).first.applyAlpha();
+
+		return std::make_pair(getBoolCharArray(finalColors, arrayChar), RETCOLORS);
 	} else {
 		throw std::logic_error("I haven't implemented that yet, okay?!?!");
 	}
