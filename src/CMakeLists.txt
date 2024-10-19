@@ -14,7 +14,14 @@ find_package(Boost 1.83.0 REQUIRED)
 file(GLOB_RECURSE HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
 file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
 
+include(CheckTypeSize)
+check_type_size("size_t" SIZEOF_SIZE_T LANGUAGE CXX)
+if (NOT ${HAVE_SIZE_T} EQUAL TRUE)
+	message(FATAL_ERROR "Could not get size of std::size_t")
+endif()
+
 add_executable(play3d main.cpp ${HEADERS} ${SOURCES})
+target_compile_definitions(play3d PRIVATE SIZEOF_SIZE_T=${SIZEOF_SIZE_T})
 target_link_libraries(play3d ${CURSES_LIBRARIES})
 target_link_libraries(play3d Boost::headers)
 

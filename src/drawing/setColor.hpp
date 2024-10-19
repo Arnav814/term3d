@@ -63,9 +63,9 @@ struct RGBA {
 
 	RGB applyAlpha() const {
 		return RGB(
-			this->r * ((float) this->a / 255),
-			this->g * ((float) this->a / 255),
-			this->b * ((float) this->a / 255)
+			this->r * (static_cast<float>(this->a) / 255.0),
+			this->g * (static_cast<float>(this->a) / 255.0),
+			this->b * (static_cast<float>(this->a) / 255.0)
 		);
 	}
 

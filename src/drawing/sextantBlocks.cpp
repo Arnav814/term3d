@@ -134,7 +134,7 @@ SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<Color
 
 	this->drawing.resize(boost::extents[height][width]);
 
-	int x, y = 0;
+	int x = 0, y = 0;
 	for (const auto& list: init) {
 		assertEq(width, list.size(), "All sub-lists must have the same size");
 		x = 0;

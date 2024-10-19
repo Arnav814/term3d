@@ -1,10 +1,15 @@
 #include "quantizeChars.hpp"
 
+#include <climits>
+#include <cmath>
 #include <csignal>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include <boost/functional/hash.hpp>
+
 #include "../extraAssertions.hpp"
 
 /* @return whether a is higher priority than b (a > b) */
@@ -73,6 +78,16 @@ std::vector<Category> extractCategory(std::vector<Color> vec) {
 	return output;
 }
 
+// TODO: make everything in this file use RGB instead of RGBA in the first place
+std::vector<RGB> applyAlphas(const std::vector<RGBA>& vec) {
+	std::vector<RGB> output;
+	output.reserve(vec.size());
+	for (const auto& i: vec) {
+		output.push_back(i.applyAlpha());
+	}
+	return output;
+}
+
 /*
  * Compare two RGBA values in a deterministic way
  *
@@ -80,8 +95,7 @@ std::vector<Category> extractCategory(std::vector<Color> vec) {
  * @return whether a is higher priority than b (a > b)
  */
 bool RGBACompare(const RGBA a, const RGBA b) {
-	// just use some random formula
-	// if we get here, this is the point where we just choose something
+	// just use some random formula (brightness)
 	float aAvg = (a.r + a.g + a.b) * a.a;
 	float bAvg = (b.r + b.g + b.b) * b.a;
 
@@ -132,20 +146,98 @@ std::vector<std::pair<RGBA, ushort>> generateColorHistogram(const std::vector<RG
 	return counts;
 }
 
-/*
- * Converts a charArray with color to a bool charArray using the specifies colors
- * 
- * Anything that isn't one of colors is assumed to be colors.second
- * @return a charArray<bool> where true indicates colors.first and false indicates colors.second
- */
-charArray<bool> getBoolCharArray(const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
+template <> struct std::hash<std::pair<RGB, RGB>> {
+	[[deprecated("I don't think this is used anywhere, but I'll leave it for now")]]
+	size_t operator()(const std::pair<RGB, RGB>& rgbPair) const {
+		#if SIZEOF_SIZE_T >= 6
+			return hash<RGB>()(rgbPair.first) << sizeof(RGB) * CHAR_BIT | hash<RGB>()(rgbPair.second);
+		#else
+			size_t val = hash<RGB>()(rgbPair.first);
+			boost::hash_combine(val, hash<RGB>()(rgbPair.second));
+			return val;
+		#endif
+	}
+};
+
+float colourDistance(const RGB e1, const RGB e2) {
+	// from https://www.compuphase.com/cmetric.htm
+	int rmean = ((int)e1.r + (int)e2.r) / 2;
+	int r = (int)e1.r - (int)e2.r;
+	int g = (int)e1.g - (int)e2.g;
+	int b = (int)e1.b - (int)e2.b;
+	return sqrt((((512+rmean)*r*r)>>8) + 4*g*g + (((767-rmean)*b*b)>>8));
+}
+
+std::pair<RGB, RGB> getMostDifferentColors(const std::vector<RGB>& colors) {
+	float maxDiff = -1;
+	std::pair<RGB, RGB> output = std::make_pair(RGB(), RGB());
+	for (const RGB colorA: colors) {
+		for (const RGB colorB: colors) {
+			if (colourDistance(colorA, colorB) > maxDiff) {
+				output = std::make_pair(colorA, colorB);
+				maxDiff = colourDistance(colorA, colorB);
+			}
+		}
+	}
+	return output;
+}
+
+RGB averageColor(const std::vector<RGB>& colors) {
+	assertNotEq(colors.size(), 0, "Cannot take the average of no colors");
+	uint r = 0, g = 0, b = 0;
+	for (const RGB color: colors) {
+		r += color.r;
+		g += color.g;
+		b += color.b;
+	}
+
+	r /= colors.size();
+	g /= colors.size();
+	b /= colors.size();
+
+	return RGB(r, g, b);
+}
+
+/* Checks for equality -- anything that isn't one of colors is assumed to be colors.second */
+charArray<bool> applyEquals(const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
 	charArray<bool> output;
-	for (uchar x = 0; x < arrayChar.size(); x++) {
+	for (uchar x = 0; x < arrayChar.size(); x++) { // FIXME: these funcs should use y, x instead
 		for (uchar y = 0; y < arrayChar[0].size(); y++) {
 			if (arrayChar[x][y].color.applyAlpha() == colors.first)
 				output[x][y] = true;
 			else
 				output[x][y] = false;
+		}
+	}
+	return output;
+}
+
+/* Checks for closeness -- the closes color from colors is used */
+charArray<bool> applyClosest(const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
+	charArray<bool> output;
+	for (uchar x = 0; x < arrayChar.size(); x++) {
+		for (uchar y = 0; y < arrayChar[0].size(); y++) {
+			output[x][y] = colourDistance(arrayChar[x][y].color.applyAlpha(), colors.first) <=
+				colourDistance(arrayChar[x][y].color.applyAlpha(), colors.second);
+		}
+	}
+	return output;
+}
+
+/* Checks for equality -- anything that isn't one of colors is matched by closeness */
+charArray<bool> applyCategory(const std::pair<Category, Category> categories,
+		const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
+	charArray<bool> output;
+	for (uchar x = 0; x < arrayChar.size(); x++) {
+		for (uchar y = 0; y < arrayChar[0].size(); y++) {
+			if (arrayChar[x][y].category == categories.first) {
+				output[x][y] = true;
+			} else if (arrayChar[x][y].category == categories.second) {
+				output[x][y] = false;
+			} else {
+				output[x][y] = colourDistance(arrayChar[x][y].color.applyAlpha(), colors.first) <=
+					colourDistance(arrayChar[x][y].color.applyAlpha(), colors.second);
+			}
 		}
 	}
 	return output;
@@ -162,16 +254,28 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 	std::pair<RGB, RGB> finalColors = std::make_pair(RGB(), RGB());
 	#define RETCOLORS getColorPair(getColor(finalColors.first), getColor(finalColors.second))
 
+	/*
+		This function works by handling several seperate cases based on number
+		of categories and whether mixing is allowed
+		size == 1, non-mixing: get 1-2 most common colors
+		size >= 2, first two non-mixing: get most common color from each category
+		size == 1, mixing: get two most different colors, then average
+		size >= 2, first two mixing: average each category
+		size >= 2, first mixing, second non-mixing: average first, most common second
+		size >= 2, first non-mixing, second mixing: most common first, average second
+	*/ 
+
 	if (rankedCategories.size() == 1 && not rankedCategories.at(0).allowMixing) {
 		auto histogram = generateColorHistogram(extractRGBA(flattened));
 		finalColors.first = histogram.at(0).first.applyAlpha();
 		if (histogram.size() >= 2)
 			finalColors.second = histogram.at(1).first.applyAlpha();
 		
-		return std::make_pair(getBoolCharArray(finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyEquals(finalColors, arrayChar), RETCOLORS);
+
 	} else if (rankedCategories.size() >= 2 &&
 			not rankedCategories.at(0).allowMixing &&
-			not rankedCategories.at(0).allowMixing) {
+			not rankedCategories.at(1).allowMixing) {
 
 		auto histogram1 = generateColorHistogram(filterColorsByCategory(
 			rankedCategories.at(0), flattened));
@@ -181,7 +285,42 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		finalColors.first = histogram1.at(0).first.applyAlpha();
 		finalColors.second = histogram2.at(0).first.applyAlpha();
 
-		return std::make_pair(getBoolCharArray(finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyEquals(finalColors, arrayChar), RETCOLORS);
+
+	} else if (rankedCategories.size() == 1 && rankedCategories.at(0).allowMixing) {
+		std::pair<RGB, RGB> mostDifferentColors = getMostDifferentColors(applyAlphas(extractRGBA(flattened)));
+		std::vector<RGB> vecFirst;
+		vecFirst.reserve(6);
+		std::vector<RGB> vecSecond;
+		vecSecond.reserve(6);
+
+		for (const RGB color: applyAlphas(extractRGBA(flattened))) {
+			if (colourDistance(color, mostDifferentColors.first) <=
+					colourDistance(color, mostDifferentColors.second))
+				vecFirst.push_back(color);
+			else
+				vecSecond.push_back(color);
+		}
+
+		finalColors.first = averageColor(vecFirst);
+		if (vecSecond.size() != 0)
+			finalColors.second = averageColor(vecSecond);
+
+		return std::make_pair(applyClosest(finalColors, arrayChar), RETCOLORS);
+
+	} else if (rankedCategories.size() >= 2 &&
+			rankedCategories.at(0).allowMixing &&
+			rankedCategories.at(1).allowMixing) {
+
+		finalColors.first = averageColor(applyAlphas(
+			filterColorsByCategory(rankedCategories.at(0), flattened)));
+		finalColors.second = averageColor(applyAlphas(
+			filterColorsByCategory(rankedCategories.at(1), flattened)));
+
+		std::pair<Category, Category> categories =
+			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
+		return std::make_pair(applyCategory(categories, finalColors, arrayChar), RETCOLORS);
+
 	} else {
 		throw std::logic_error("I haven't implemented that yet, okay?!?!");
 	}

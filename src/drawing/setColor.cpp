@@ -27,7 +27,7 @@ short getColor(const RGB color) {
 		if (nextColor == std::numeric_limits<decltype(nextColor)>::max())
 			throw std::runtime_error("Reached maximium number of colors.");
 		nextColor++;
-		#define SCALE(val) ((short) val * (1000/255))
+		#define SCALE(val) ((short) val * 1000 / 255)
 		init_color(nextColor, SCALE(color.r), SCALE(color.g), SCALE(color.b));
 		#undef SCALE
 		storedColors.insert(std::make_pair(color, nextColor));
