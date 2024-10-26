@@ -4,7 +4,6 @@
 #include <cmath>
 #include <csignal>
 #include <limits>
-#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <utility>
@@ -224,7 +223,7 @@ charArray<bool> applyClosest(const std::pair<RGB, RGB> colors, const charArray<C
 	return output;
 }
 
-/* Checks for equality -- anything that isn't one of colors is matched by closeness */
+/* Checks for category -- anything that isn't one of categories is matched by closeness */
 charArray<bool> applyCategory(const std::pair<Category, Category> categories,
 		const std::pair<RGB, RGB> colors, const charArray<Color>& arrayChar) {
 	charArray<bool> output;
@@ -237,6 +236,22 @@ charArray<bool> applyCategory(const std::pair<Category, Category> categories,
 			} else {
 				output[x][y] = colourDistance(arrayChar[x][y].color.applyAlpha(), colors.first) <=
 					colourDistance(arrayChar[x][y].color.applyAlpha(), colors.second);
+			}
+		}
+	}
+	return output;
+}
+
+/* Checks for category -- anything that isn't one of categories is treated as category 2  */
+charArray<bool> applyCategoryStrict(const std::pair<Category, Category> categories,
+		const charArray<Color>& arrayChar) {
+	charArray<bool> output;
+	for (uchar x = 0; x < arrayChar.size(); x++) {
+		for (uchar y = 0; y < arrayChar[0].size(); y++) {
+			if (arrayChar[x][y].category == categories.first) {
+				output[x][y] = true;
+			} else {
+				output[x][y] = false;
 			}
 		}
 	}
@@ -285,7 +300,9 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		finalColors.first = histogram1.at(0).first.applyAlpha();
 		finalColors.second = histogram2.at(0).first.applyAlpha();
 
-		return std::make_pair(applyEquals(finalColors, arrayChar), RETCOLORS);
+		std::pair<Category, Category> categories =
+			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
+		return std::make_pair(applyCategoryStrict(categories, arrayChar), RETCOLORS);
 
 	} else if (rankedCategories.size() == 1 && rankedCategories.at(0).allowMixing) {
 		std::pair<RGB, RGB> mostDifferentColors = getMostDifferentColors(applyAlphas(extractRGBA(flattened)));
@@ -321,10 +338,40 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
 		return std::make_pair(applyCategory(categories, finalColors, arrayChar), RETCOLORS);
 
+	} else if (rankedCategories.size() >= 2 &&
+			rankedCategories.at(0).allowMixing &&
+			not rankedCategories.at(1).allowMixing) {
+
+		finalColors.first = averageColor(
+			applyAlphas(filterColorsByCategory(rankedCategories.at(0), flattened)));
+
+		auto histogram2 =
+			generateColorHistogram(filterColorsByCategory(rankedCategories.at(1), flattened));
+		finalColors.second = histogram2.at(0).first.applyAlpha();
+		
+		std::pair<Category, Category> categories =
+			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
+		return std::make_pair(applyCategory(categories, finalColors, arrayChar), RETCOLORS);
+
+	} else if (rankedCategories.size() >= 2 &&
+			not rankedCategories.at(0).allowMixing &&
+			rankedCategories.at(1).allowMixing) {
+		
+		auto histogram1 =
+			generateColorHistogram(filterColorsByCategory(rankedCategories.at(0), flattened));
+		finalColors.first = histogram1.at(0).first.applyAlpha();
+
+		finalColors.second = averageColor(
+			applyAlphas(filterColorsByCategory(rankedCategories.at(1), flattened)));
+		
+		std::pair<Category, Category> categories =
+			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
+		return std::make_pair(applyCategoryStrict(categories, arrayChar), RETCOLORS);
+
 	} else {
-		throw std::logic_error("I haven't implemented that yet, okay?!?!");
+		throw std::logic_error("This is impossible. What. (error in getTrimmedColors)");
 	}
 
-	#undef RETCOLORS
+#undef RETCOLORS
 }
 

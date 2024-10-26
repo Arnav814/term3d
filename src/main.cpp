@@ -2,6 +2,7 @@
 #include <clocale>
 #include <csignal>
 #include <exception>
+#include <limits>
 #include <vector>
 #include <ncursesw/curses.h>
 
@@ -38,21 +39,22 @@ int main() {
 
 	setlocale(LC_ALL, "");
 	initscr(); // initialize curses
+
 	cbreak(); // don't wait for a newline
 	noecho(); // don't echo input
 	nodelay(stdscr, true); // don't block for input
 	start_color();
 	assertMsg(can_change_color(), "You term == bad."); // TODO: better handling of this
 
-	#define A Color(Category(true, 1), RGBA(255, 255, 255, 255))
-	#define B Color(Category(true, 1), RGBA(0, 0, 0, 255))
-	#define C Color(Category(true, 2), RGBA(0, 255, 0, 255))
+	#define A Color(Category(false, 1), RGBA(255, 255, 255, 255))
+	#define B Color(Category(true, 2), RGBA(0, 0, 0, 255))
+	#define C Color(Category(false, 1), RGBA(0, 255, 0, 255))
 	#define D Color(Category(true, 2), RGBA(0, 1, 255, 255))
-	#define E Color(Category(true, 3), RGBA(16, 128, 32, 255))
+	#define E Color(Category(false, 3), RGBA(16, 128, 32, 255))
 	SextantDrawing drawing({
-		{B,A,A,A,C,D,C,A,A,A,E,E},
-		{B,A,A,B,C,D,A,A,C,C,E,E},
-		{A,A,C,D,C,D,A,A,A,E,E,E}
+		{B,A,A,A,C,D,C,A,C,A,E},
+		{B,A,A,B,C,D,A,A,C,C,E},
+		{A,A,C,D,C,D,A,A,C,E,E}
 	});
 	#undef A
 	#undef B
