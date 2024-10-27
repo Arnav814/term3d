@@ -121,7 +121,7 @@ void testAllSextants() {
 SextantDrawing::SextantDrawing(const int height, const int width) {
 	assertGtEq(height, 0, "height must be positive");
 	assertGtEq(width, 0, "width must be positive");
-	this->drawing = drawing_type(boost::extents[height][width]);
+	this->resize(height, width);
 }
 
 SextantDrawing::SextantDrawing(std::initializer_list<std::initializer_list<Color>> init) {
@@ -214,11 +214,12 @@ void SextantDrawing::insert(const SextantCoord& topLeft, const SextantDrawing& t
 		Color newColor = toCopy.get(coord);
 		Color oldColor = this->get(coord);
 
-		uchar alpha = newColor.color.a + oldColor.color.a * (1 - newColor.color.a);
-		#define TRANSFORM_COLOR(channel) (((float) newColor.color.channel * newColor.color.a + (float) oldColor.color.channel * oldColor.color.a * (1 - newColor.color.a)) / alpha)
+		#define TRANSFORM_COLOR(channel) (((float) newColor.color.channel * (newColor.color.a/255.0f) + \
+		(float) oldColor.color.channel * (oldColor.color.a/255.0f) * (1.0f - newColor.color.a/255.0f)))
 		uchar red = TRANSFORM_COLOR(r);
 		uchar green = TRANSFORM_COLOR(g);
 		uchar blue = TRANSFORM_COLOR(b);
+		uchar alpha = newColor.color.a + oldColor.color.a * (1.0f - newColor.color.a/255.0f);
 		#undef TRANSFORM_COLOR
 		RGBA color = RGBA(red, green, blue, alpha);
 
@@ -251,8 +252,8 @@ WindowedDrawing::WindowedDrawing(WINDOW* win) : SextantDrawing(0, 0) {
 }
 
 void WindowedDrawing::autoRescale() {
-	int maxX, maxY;
-	getmaxyx(win, maxX, maxY);
+	int maxY, maxX;
+	getmaxyx(win, maxY, maxX);
 	this->resize(maxY*3, maxX*2);
 }
 

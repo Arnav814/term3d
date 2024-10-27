@@ -44,8 +44,8 @@ template <typename T> struct Coord3d {
 	bool operator!=(const Coord3d& other) const = default;
 };
 
-template <typename T> inline double dotProduct(Coord3d<T> a, Coord3d<T> b) {
-	
+template <typename T> inline double dotProduct(const Coord3d<T> a, const Coord3d<T> b) {
+	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
 #endif /* COORD3D_HPP */
