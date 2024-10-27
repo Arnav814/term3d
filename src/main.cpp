@@ -4,6 +4,7 @@
 #include <exception>
 #include <limits>
 #include <vector>
+#include "raytracer/raytracer.hpp"
 #include <ncursesw/curses.h>
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
@@ -34,8 +35,22 @@ void termHandler() {
 	abort();
 }
 
+void sigHandle([[maybe_unused]] int sig) {
+	// try exiting nicely once, then hard abort
+	if (not EXIT_REQUESTED) {
+		EXIT_REQUESTED = true;
+	} else {
+		abort();
+	}
+}
+
 int main() {
 	std::set_terminate(termHandler);
+
+	// make interrups exit nicely
+	EXIT_REQUESTED = false;
+	signal(SIGINT, sigHandle);
+	signal(SIGTERM, sigHandle);
 
 	setlocale(LC_ALL, "");
 	initscr(); // initialize curses
@@ -46,28 +61,8 @@ int main() {
 	start_color();
 	assertMsg(can_change_color(), "You term == bad."); // TODO: better handling of this
 
-	#define A Color(Category(false, 1), RGBA(255, 255, 255, 255))
-	#define B Color(Category(true, 2), RGBA(0, 0, 0, 255))
-	#define C Color(Category(false, 1), RGBA(0, 255, 0, 255))
-	#define D Color(Category(true, 2), RGBA(0, 1, 255, 255))
-	#define E Color(Category(false, 3), RGBA(16, 128, 32, 255))
-	SextantDrawing drawing({
-		{B,A,A,A,C,D,C,A,C,A,E},
-		{B,A,A,B,C,D,A,A,C,C,E},
-		{A,A,C,D,C,D,A,A,C,E,E}
-	});
-	#undef A
-	#undef B
-	#undef C
-	#undef D
-	#undef E
-	
 	WindowedDrawing finalDrawing(stdscr);
-	finalDrawing.clear();
-	finalDrawing.insert(SextantCoord(0, 0), drawing);
-	finalDrawing.render();
-	refresh();
-	sleep(10);
+	renderLoop(finalDrawing, refresh);
 
 	endwin();
 	return 0;

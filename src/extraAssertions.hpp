@@ -4,9 +4,13 @@
 #include <iostream>
 #include <execinfo.h>
 
+// this file serves as a place for everything that needs to be included everywhere
+
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
+
+extern bool EXIT_REQUESTED;
 
 inline void printTrace() {
 	std::cerr << "Traceback:" << '\n';
