@@ -1,0 +1,15 @@
+
+BasedOnStyle: LLVM
+
+ColumnLimit: 120
+LineEnding: LF
+
+PointerAlignment: Left
+AlignTrailingComments: Never
+AlignArrayOfStructures: Left
+AlignEscapedNewlines: DontAlign
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+
