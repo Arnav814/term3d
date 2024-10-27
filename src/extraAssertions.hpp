@@ -10,8 +10,6 @@ typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
 
-extern bool EXIT_REQUESTED;
-
 inline void printTrace() {
 	std::cerr << "Traceback:" << '\n';
 	void* callstack[128];

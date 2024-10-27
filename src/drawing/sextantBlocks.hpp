@@ -27,6 +27,9 @@ class SextantDrawing {
 		SextantDrawing(const int height, const int width);
 		[[nodiscard]] int getWidth() const {return this->drawing[0].size();}
 		[[nodiscard]] int getHeight() const {return this->drawing.size();}
+		[[nodiscard]] SextantCoord getSize() const {
+			return SextantCoord(this->getHeight(), this->getWidth());
+		}
 		[[nodiscard]] Color get(const SextantCoord& coord) const;
 		[[nodiscard]] CoordIterator<SextantCoord> getIterator() const;
 		void clear();

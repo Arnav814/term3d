@@ -35,6 +35,8 @@ void termHandler() {
 	abort();
 }
 
+bool EXIT_REQUESTED = false;
+
 void sigHandle([[maybe_unused]] int sig) {
 	// try exiting nicely once, then hard abort
 	if (not EXIT_REQUESTED) {
@@ -48,7 +50,6 @@ int main() {
 	std::set_terminate(termHandler);
 
 	// make interrups exit nicely
-	EXIT_REQUESTED = false;
 	signal(SIGINT, sigHandle);
 	signal(SIGTERM, sigHandle);
 
@@ -62,7 +63,7 @@ int main() {
 	assertMsg(can_change_color(), "You term == bad."); // TODO: better handling of this
 
 	WindowedDrawing finalDrawing(stdscr);
-	renderLoop(finalDrawing, refresh);
+	renderLoop(finalDrawing, EXIT_REQUESTED, refresh);
 
 	endwin();
 	return 0;
