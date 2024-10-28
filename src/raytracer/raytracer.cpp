@@ -26,11 +26,8 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 
 struct Sphere {Coord3d<double> center; double radius; Color color;};
 
-// TODO: better scene format
-const std::vector<Sphere> SCENE = {
-	Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}),
-	Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}),
-	Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}),
+struct Scene {
+	std::vector<Sphere> spheres;
 };
 
 // solves the quadratic
@@ -53,12 +50,12 @@ std::pair<double, double> intersectRaySphere(
 	);
 }
 
-Color traceRay(const Coord3d<double> origin, const Coord3d<double>
-		direction, const double tMin, const double tMax) {
+Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
+		const Scene& scene, const double tMin, const double tMax) {
 	double closestT = std::numeric_limits<double>::infinity();
 	std::optional<Sphere> closestSphere{};
 	
-	for (const Sphere sphere: SCENE) {
+	for (const Sphere sphere: scene.spheres) {
 		std::pair<double, double> t = intersectRaySphere(origin, direction, sphere);
 		if (t.first >= tMin && t.first <= tMax && t.first < closestT) {
 			closestT = t.first;
@@ -77,6 +74,14 @@ Color traceRay(const Coord3d<double> origin, const Coord3d<double>
 }
 
 void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
+	const static Scene scene{
+		{
+			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}),
+			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}),
+			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}),
+		}
+	};
+
 	int minDimension = std::min(rawCanvas.getHeight(), rawCanvas.getWidth()/2);
 	SextantDrawing canvas{minDimension, minDimension*2};
 	Coord3d<double> origin = Coord3d<double>();
@@ -84,7 +89,7 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 		for (int x = -canvas.getWidth() / 2; x < canvas.getWidth() / 2; x++) {
 			for (int y = -canvas.getHeight() / 2; y < canvas.getHeight() / 2; y++) {
 				Coord3d direction = canvasToViewport(SextantCoord(y, x), canvas.getSize());
-				Color color = traceRay(origin, direction, viewportDistance,
+				Color color = traceRay(origin, direction, scene, viewportDistance,
 					std::numeric_limits<double>::infinity());
 				putPixel(canvas, SextantCoord(y, x), color);
 			}
