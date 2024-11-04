@@ -264,7 +264,7 @@ void WindowedDrawing::render() const {
 			charArray<Color> asArray = getChar(SextantCoord(y, x));
 			std::pair<charArray<bool>, int> trimmed = getTrimmedColors(asArray);
 
-			attrset(trimmed.second);
+			color_set(trimmed.second, NULL);
 			//std::cerr << "p(" << std::to_string(y/3) << ", " << std::to_string(x/2) << ") " <<
 				//std::to_string(colors.first) << " " << std::to_string(colors.second) << '\n';
 			mvaddstr(y / 3, x / 2, utf8_conv.to_bytes(sextantMap[packArray(trimmed.first)]).c_str());

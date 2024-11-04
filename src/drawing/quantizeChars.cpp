@@ -372,6 +372,6 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		throw std::logic_error("This is impossible. What. (error in getTrimmedColors)");
 	}
 
-#undef RETCOLORS
+	#undef RETCOLORS
 }
 

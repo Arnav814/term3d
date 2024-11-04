@@ -35,6 +35,32 @@ struct RGB {
 
 	RGB() : RGB(0, 0, 0) { }
 
+	RGB operator*=(const double& magnitude) {
+		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
+		this->r *= magnitude;
+		this->g *= magnitude;
+		this->b *= magnitude;
+		return *this;
+	}
+
+	RGB operator/=(const double& magnitude) {
+		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
+		this->r /= magnitude;
+		this->g /= magnitude;
+		this->b /= magnitude;
+		return *this;
+	}
+
+	RGB operator*(const double& magnitude) const {
+		RGB temp{*this};
+		return temp *= magnitude;
+	}
+
+	RGB operator/(const double& magnitude) const {
+		RGB temp{*this};
+		return temp /= magnitude;
+	}
+
 	bool operator==(const RGB& other) const = default;
 	bool operator!=(const RGB& other) const = default;
 };
@@ -67,6 +93,32 @@ struct RGBA {
 			this->g * (static_cast<float>(this->a) / 255.0),
 			this->b * (static_cast<float>(this->a) / 255.0)
 		);
+	}
+
+	RGBA operator*=(const double& magnitude) {
+		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
+		this->r *= magnitude;
+		this->g *= magnitude;
+		this->b *= magnitude;
+		return *this;
+	}
+
+	RGBA operator/=(const double& magnitude) {
+		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
+		this->r /= magnitude;
+		this->g /= magnitude;
+		this->b /= magnitude;
+		return *this;
+	}
+
+	RGBA operator*(const double& magnitude) const {
+		RGBA temp{*this};
+		return temp *= magnitude;
+	}
+
+	RGBA operator/(const double& magnitude) const {
+		RGBA temp{*this};
+		return temp /= magnitude;
 	}
 
 	bool operator==(const RGBA& other) const = default;

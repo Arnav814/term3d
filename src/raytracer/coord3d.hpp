@@ -42,6 +42,10 @@ template <typename T> struct Coord3d {
 	bool operator==(const Coord3d& other) const = default;
 
 	bool operator!=(const Coord3d& other) const = default;
+
+	T length() const {
+		return sqrt(pow(this->x, 2) + pow(this->y, 2) + pow(this->z, 2));
+	}
 };
 
 template <typename T> inline double dotProduct(const Coord3d<T> a, const Coord3d<T> b) {

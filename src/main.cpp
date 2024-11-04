@@ -2,8 +2,6 @@
 #include <clocale>
 #include <csignal>
 #include <exception>
-#include <limits>
-#include <vector>
 #include "raytracer/raytracer.hpp"
 #include <ncursesw/curses.h>
 
@@ -59,8 +57,8 @@ int main() {
 	cbreak(); // don't wait for a newline
 	noecho(); // don't echo input
 	nodelay(stdscr, true); // don't block for input
-	start_color();
 	assertMsg(can_change_color(), "You term == bad."); // TODO: better handling of this
+	start_color();
 
 	WindowedDrawing finalDrawing(stdscr);
 	renderLoop(finalDrawing, EXIT_REQUESTED, refresh);

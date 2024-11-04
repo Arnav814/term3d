@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <curses.h>
 
+// TODO: recycle colors/color_pairs
+
 template <> struct std::hash<std::pair<uchar, uchar>> {
 	size_t operator()(const pair<uchar, uchar> chPair) const {
 		return (size_t) (chPair.first << 8) | chPair.second;
@@ -25,14 +27,16 @@ short getColor(const RGB color) {
 	auto tryFind = storedColors.find(color);
 	if (tryFind == storedColors.end()) {
 		if (nextColor == std::numeric_limits<decltype(nextColor)>::max())
-			throw std::runtime_error("Reached maximium number of colors.");
+			throw std::runtime_error("Reached maximium number of colors");
 		nextColor++;
 		#define SCALE(val) ((short) val * 1000 / 255)
-		init_color(nextColor, SCALE(color.r), SCALE(color.g), SCALE(color.b));
+		int status = init_extended_color(nextColor, SCALE(color.r), SCALE(color.g), SCALE(color.b));
+		if (status == ERR)
+			throw std::runtime_error(std::format("Cannot create more colors (at {})", nextColor));
 		#undef SCALE
 		storedColors.insert(std::make_pair(color, nextColor));
 		return nextColor;
-	} else [[likely]] {
+	} else {
 		return tryFind->second;
 	}
 }
@@ -45,12 +49,15 @@ int getColorPair(const uchar fg, const uchar bg) {
 	auto tryFind = storedColorPairs.find(std::make_pair(fg, bg));
 	if (tryFind == storedColorPairs.end()) {
 		if (nextPair == std::numeric_limits<decltype(nextPair)>::max())
-			throw std::runtime_error("Reached maximium number of color_pairs.");
+			throw std::runtime_error("Reached maximium number of color_pairs");
 		nextPair++;
-		init_pair(nextPair, fg, bg);
+		int status = init_extended_pair(nextPair, fg, bg);
+		if (status == ERR)
+			throw std::runtime_error("Cannot create more color_pairs");
 		storedColorPairs.insert(std::make_pair(std::make_pair(fg, bg), nextPair));
-		return COLOR_PAIR(nextPair);
-	} else [[likely]] {
-		return COLOR_PAIR(tryFind->second);
+		return nextPair;
+	} else {
+		return tryFind->second;
 	}
 }
+
