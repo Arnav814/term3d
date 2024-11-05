@@ -4,7 +4,7 @@
 #include <array>
 #include <boost/multi_array.hpp>
 #include <initializer_list>
-#include <curses.h>
+#include <notcurses/notcurses.h>
 
 #include "../extraAssertions.hpp"
 #include "coord2d.hpp"
@@ -42,10 +42,10 @@ class SextantDrawing {
 
 class WindowedDrawing : public SextantDrawing {
 	private:
-		WINDOW* win;
+		ncplane* win;
 
 	public:
-		WindowedDrawing(WINDOW* win);
+		WindowedDrawing(ncplane* win);
 		void autoRescale();
 		void render() const;
 };

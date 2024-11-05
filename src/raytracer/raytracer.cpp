@@ -10,7 +10,7 @@
 const double viewportWidth = 1.0;
 const double viewportHeight = 1.0;
 const double viewportDistance = 1.0;
-const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA());
+const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA(255, 255, 255, 255));
 
 // converts from origin at center to origin at top left
 void putPixel(SextantDrawing& canvas, const SextantCoord coord, const Color color) {
@@ -117,7 +117,7 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}),
 			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}),
 			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}),
-			/* Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}), */
+			Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}),
 		},
 		0.2,
 		{DirectionalLight(0.2, Coord3d(1.0, 4.0, 4.0))},

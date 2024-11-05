@@ -1,9 +1,9 @@
 #include "setColor.hpp"
+/*
 
 #include <unordered_map>
 #include <limits>
 #include <stdexcept>
-#include <curses.h>
 
 // TODO: recycle colors/color_pairs
 
@@ -61,3 +61,4 @@ int getColorPair(const uchar fg, const uchar bg) {
 	}
 }
 
+*/

@@ -118,14 +118,14 @@ inline void printTrace() {
 
 #else
 
-	#define assertMessage(condition, message) do { } while (false)
+	#define assertMsg(condition, message) do { } while (false)
 	#define assertEq(value, target, message) do { } while (false)
 	#define assertNotEq(value, target, message) do { } while (false)
 	#define assertGt(value, target, message) do { } while (false)
 	#define assertGtEq(value, target, message) do { } while (false)
 	#define assertLt(value, target, message) do { } while (false)
 	#define assertLtEq(target, value, message) do { } while (false)
-	#define assertBetween(min, value, max, message) do { } while (false)
+	#define assertBetweenHalfOpen(min, value, max, message) do { } while (false)
 	#define assertBetweenIncl(min, value, max, message) do { } while (false)
 
 #endif

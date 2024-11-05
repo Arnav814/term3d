@@ -12,7 +12,6 @@
 #include <bitset>
 #include <iostream>
 #include <csignal>
-#include <curses.h>
 
 #include "coord2d.hpp"
 #include "../extraAssertions.hpp"
@@ -245,29 +244,30 @@ void SextantDrawing::debugPrint() const {
 	std::cerr << std::flush;
 }
 
-WindowedDrawing::WindowedDrawing(WINDOW* win) : SextantDrawing(0, 0) {
+WindowedDrawing::WindowedDrawing(ncplane* win) : SextantDrawing(0, 0) {
 	this->win = win;
 	assertMsg(win != NULL, "win cannot be null");
 	this->autoRescale();
 }
 
 void WindowedDrawing::autoRescale() {
-	int maxY, maxX;
-	getmaxyx(win, maxY, maxX);
+	uint maxY, maxX;
+	ncplane_dim_yx(this->win, &maxY, &maxX);
 	this->resize(maxY*3, maxX*2);
 }
 
 void WindowedDrawing::render() const {
-	static std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_conv;
 	for (int y = 0; y < this->getHeight(); y += 3) {
 		for (int x = 0; x < this->getWidth(); x += 2) {
 			charArray<Color> asArray = getChar(SextantCoord(y, x));
-			std::pair<charArray<bool>, int> trimmed = getTrimmedColors(asArray);
+			auto trimmed = getTrimmedColors(asArray);
 
-			color_set(trimmed.second, NULL);
+			ncplane_cursor_move_yx(this->win, y/3, x/2);
+			ncplane_set_fg_rgb8(this->win, trimmed.second.first.r, trimmed.second.first.g, trimmed.second.first.b);
+			ncplane_set_bg_rgb8(this->win, trimmed.second.second.r, trimmed.second.second.g, trimmed.second.second.b);
+			ncplane_putwc(this->win, sextantMap[packArray(trimmed.first)]);
 			//std::cerr << "p(" << std::to_string(y/3) << ", " << std::to_string(x/2) << ") " <<
 				//std::to_string(colors.first) << " " << std::to_string(colors.second) << '\n';
-			mvaddstr(y / 3, x / 2, utf8_conv.to_bytes(sextantMap[packArray(trimmed.first)]).c_str());
 		}
 	}
 }

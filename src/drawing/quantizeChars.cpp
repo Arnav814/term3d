@@ -263,11 +263,10 @@ charArray<bool> applyCategoryStrict(const std::pair<Category, Category> categori
  *
  * @return array with fg and bg and a color pair
  */
-std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar) {
+std::pair<charArray<bool>, std::pair<RGB, RGB>> getTrimmedColors(const charArray<Color>& arrayChar) {
 	std::vector<Color> flattened = flattenCharArray(arrayChar);
 	std::vector<Category> rankedCategories = rankCategories(flattened);
 	std::pair<RGB, RGB> finalColors = std::make_pair(RGB(), RGB());
-	#define RETCOLORS getColorPair(getColor(finalColors.first), getColor(finalColors.second))
 
 	/*
 		This function works by handling several seperate cases based on number
@@ -286,7 +285,7 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		if (histogram.size() >= 2)
 			finalColors.second = histogram.at(1).first.applyAlpha();
 		
-		return std::make_pair(applyEquals(finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyEquals(finalColors, arrayChar), finalColors);
 
 	} else if (rankedCategories.size() >= 2 &&
 			not rankedCategories.at(0).allowMixing &&
@@ -302,7 +301,7 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 
 		std::pair<Category, Category> categories =
 			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
-		return std::make_pair(applyCategoryStrict(categories, arrayChar), RETCOLORS);
+		return std::make_pair(applyCategoryStrict(categories, arrayChar), finalColors);
 
 	} else if (rankedCategories.size() == 1 && rankedCategories.at(0).allowMixing) {
 		std::pair<RGB, RGB> mostDifferentColors = getMostDifferentColors(applyAlphas(extractRGBA(flattened)));
@@ -323,7 +322,7 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		if (vecSecond.size() != 0)
 			finalColors.second = averageColor(vecSecond);
 
-		return std::make_pair(applyClosest(finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyClosest(finalColors, arrayChar), finalColors);
 
 	} else if (rankedCategories.size() >= 2 &&
 			rankedCategories.at(0).allowMixing &&
@@ -336,7 +335,7 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 
 		std::pair<Category, Category> categories =
 			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
-		return std::make_pair(applyCategory(categories, finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyCategory(categories, finalColors, arrayChar), finalColors);
 
 	} else if (rankedCategories.size() >= 2 &&
 			rankedCategories.at(0).allowMixing &&
@@ -351,7 +350,7 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		
 		std::pair<Category, Category> categories =
 			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
-		return std::make_pair(applyCategory(categories, finalColors, arrayChar), RETCOLORS);
+		return std::make_pair(applyCategory(categories, finalColors, arrayChar), finalColors);
 
 	} else if (rankedCategories.size() >= 2 &&
 			not rankedCategories.at(0).allowMixing &&
@@ -366,12 +365,10 @@ std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayCh
 		
 		std::pair<Category, Category> categories =
 			std::make_pair(rankedCategories.at(0), rankedCategories.at(1));
-		return std::make_pair(applyCategoryStrict(categories, arrayChar), RETCOLORS);
+		return std::make_pair(applyCategoryStrict(categories, arrayChar), finalColors);
 
 	} else {
 		throw std::logic_error("This is impossible. What. (error in getTrimmedColors)");
 	}
-
-	#undef RETCOLORS
 }
 

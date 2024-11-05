@@ -2,8 +2,11 @@
 #include <clocale>
 #include <csignal>
 #include <exception>
+#include <notcurses/notcurses.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "raytracer/raytracer.hpp"
-#include <ncursesw/curses.h>
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
 
@@ -52,18 +55,14 @@ int main() {
 	signal(SIGTERM, sigHandle);
 
 	setlocale(LC_ALL, "");
-	initscr(); // initialize curses
+	notcurses* nc = notcurses_core_init(NULL, stdout);
+	ncplane* stdplane = notcurses_stdplane(nc);
 
-	cbreak(); // don't wait for a newline
-	noecho(); // don't echo input
-	nodelay(stdscr, true); // don't block for input
-	assertMsg(can_change_color(), "You term == bad."); // TODO: better handling of this
-	start_color();
+	WindowedDrawing finalDrawing(stdplane);
+	auto render = std::bind(notcurses_render, nc);
+	renderLoop(finalDrawing, EXIT_REQUESTED, render);
 
-	WindowedDrawing finalDrawing(stdscr);
-	renderLoop(finalDrawing, EXIT_REQUESTED, refresh);
-
-	endwin();
+	notcurses_stop(nc);
 	return 0;
 }
 

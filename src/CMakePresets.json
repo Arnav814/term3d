@@ -20,6 +20,9 @@
 			"displayName": "Release",
 			"description": "For release builds",
 			"inherits": "default",
+			"warnings": {
+				"dev": false
+			},
 			"environment": {
 				"CXX_OPTIMIZATION": "-O2",
 				"CXX_ISERROR": "-Werror"

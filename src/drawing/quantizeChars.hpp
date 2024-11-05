@@ -9,6 +9,6 @@
 #include <utility>
 #include "setColor.hpp"
 
-std::pair<charArray<bool>, int> getTrimmedColors(const charArray<Color>& arrayChar);
+std::pair<charArray<bool>, std::pair<RGB, RGB>> getTrimmedColors(const charArray<Color>& arrayChar);
 
 #endif /* QUANTIZECHARS_HPP */
