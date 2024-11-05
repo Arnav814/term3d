@@ -27,7 +27,7 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 	};
 }
 
-struct Sphere {Coord3d<double> center; double radius; Color color;};
+struct Sphere {Coord3d<double> center; double radius; Color color; double specular;};
 
 struct Light {
 	virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const = 0;
@@ -93,14 +93,27 @@ std::pair<double, double> intersectRaySphere(
 }
 
 double computeLighting(const Scene& scene, const Coord3d<double> point,
-		const Coord3d<double> normal) {
+		const Coord3d<double> normal, const Coord3d<double> exitVec, const double specular) {
 	double intensity = scene.ambientLight;
 
 	for (const std::shared_ptr<const Light> light: scene.lights) {
-		double normalDotLight = dotProduct(normal, light->getDirection(point));
+		Coord3d<double> lightDir = light->getDirection(point);
+
+		// diffuse
+		double normalDotLight = dotProduct(normal, lightDir);
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight) /
-			             (normal.length() * light->getDirection(point).length());
+			             (normal.length() * lightDir.length());
+		}
+
+		// specular
+		if (specular != -1) {
+			Coord3d<double> reflected = normal * 2.0 * dotProduct(normal, lightDir) - lightDir;
+			double reflectedDotExit = dotProduct(reflected, exitVec);
+			if (reflectedDotExit > 0) {
+				intensity += light->getIntensity() * pow(reflectedDotExit /
+				             (reflected.length() * exitVec.length()), specular);
+			}
 		}
 	}
 
@@ -129,7 +142,7 @@ Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
 		Coord3d<double> normal = intersection - closestSphere->center;
 		normal = normal / normal.length(); // make length == 1
 		Color color = closestSphere->color;
-		color.color *= computeLighting(scene, intersection, normal);
+		color.color *= computeLighting(scene, intersection, normal, -direction, closestSphere->specular);
 		return color;
 	} else {
 		return BACKGROUND_COLOR;
@@ -139,10 +152,10 @@ Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
 void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
 	const static Scene scene{
 		{
-			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}),
-			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}),
-			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}),
-			Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}),
+			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500),
+			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500),
+			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10),
+			Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000),
 		},
 		0.2,
 		{

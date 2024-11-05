@@ -23,6 +23,10 @@ template <typename T> struct Coord3d {
 		return Coord3d(this->x - other.x, this->y - other.y, this->z - other.z);
 	}
 
+	Coord3d operator-() const {
+		return Coord3d(-this->x, -this->y, -this->z);
+	}
+
 	Coord3d operator*(const int other) const {
 		return Coord3d(this->x * other, this->y * other, this->z * other);
 	}
