@@ -4,6 +4,7 @@
 #include "../extraAssertions.hpp"
 #include <csignal>
 #include <limits>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -28,15 +29,47 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 
 struct Sphere {Coord3d<double> center; double radius; Color color;};
 
-// TODO: polymorphism magic?
-struct DirectionalLight {double intensity; Coord3d<double> direction;};
-struct PointLight {double intensity; Coord3d<double> position;};
+struct Light {
+	virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const = 0;
+	virtual double getIntensity() const = 0;
+};
+
+class DirectionalLight : public Light {
+		double intensity;
+		Coord3d<double> direction;
+
+	public:
+		DirectionalLight(double intensity, Coord3d<double> direction) : intensity(intensity), direction(direction) {}
+
+		virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const {
+			return this->direction;
+		}
+
+		virtual double getIntensity() const {
+			return this->intensity;
+		}
+};
+
+class PointLight : public Light {
+		double intensity;
+		Coord3d<double> position;
+
+	public:
+		PointLight(double intensity, Coord3d<double> position) : intensity(intensity), position(position) {}
+		
+		virtual Coord3d<double> getDirection(Coord3d<double> point) const {
+			return this->position - point;
+		}
+
+		virtual double getIntensity() const {
+			return this->intensity;
+		}
+};
 
 struct Scene {
 	std::vector<Sphere> spheres;
 	double ambientLight;
-	std::vector<DirectionalLight> directionalLights;
-	std::vector<PointLight> pointLights;
+	std::vector<std::shared_ptr<Light>> lights;
 };
 
 // solves the quadratic
@@ -63,23 +96,15 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 		const Coord3d<double> normal) {
 	double intensity = scene.ambientLight;
 
-	// contains direction from point and intensity
-	std::vector<std::pair<Coord3d<double>, double>> directionVecs{};
-	
-	for (PointLight light: scene.pointLights) {
-		directionVecs.push_back(std::make_pair(light.position - point, light.intensity));
-	}
-	for (DirectionalLight light: scene.directionalLights) {
-		directionVecs.push_back(std::make_pair(light.direction, light.intensity));
+	for (const std::shared_ptr<const Light> light: scene.lights) {
+		double normalDotLight = dotProduct(normal, light->getDirection(point));
+		if (normalDotLight > 0) { // ignore lights behind the surface
+			intensity += (light->getIntensity() * normalDotLight) /
+			             (normal.length() * light->getDirection(point).length());
+		}
 	}
 
-	for (auto light: directionVecs) {
-		double pointDotLight = dotProduct(point, light.first);
-		if (pointDotLight > 0) // ignore lights behind the surface
-			intensity += (light.second * pointDotLight) / (normal.length() * light.first.length());
-	}
-
-	return intensity;
+	return std::min(intensity, 1.0);
 }
 
 Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
@@ -104,7 +129,7 @@ Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
 		Coord3d<double> normal = intersection - closestSphere->center;
 		normal = normal / normal.length(); // make length == 1
 		Color color = closestSphere->color;
-		color.color *= std::min(computeLighting(scene, intersection, normal), 1.0);
+		color.color *= computeLighting(scene, intersection, normal);
 		return color;
 	} else {
 		return BACKGROUND_COLOR;
@@ -120,8 +145,10 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 			Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}),
 		},
 		0.2,
-		{DirectionalLight(0.2, Coord3d(1.0, 4.0, 4.0))},
-		{PointLight(0.6, Coord3d(2.0, 1.0, 0.0))}
+		{
+			std::make_shared<DirectionalLight>(0.2, Coord3d(1.0, 4.0, 4.0)),
+			std::make_shared<PointLight>(0.6, Coord3d(2.0, 1.0, 0.0))
+		}
 	};
 
 	int minDimension = std::min(rawCanvas.getHeight(), rawCanvas.getWidth()/2);
