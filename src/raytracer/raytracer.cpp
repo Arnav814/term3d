@@ -22,12 +22,6 @@ const double viewportDistance = 1.0;
 const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA(0, 0, 0, 255));
 const uint REFLECTION_MAX = 3;
 
-// converts from origin at center to origin at top left
-void putPixel(SextantDrawing& canvas, const SextantCoord coord, const Color color) {
-	SextantCoord translated{canvas.getHeight() / 2 - coord.y, canvas.getWidth() / 2 + coord.x};
-	canvas.trySet(translated, color);
-}
-
 dvec3 canvasToViewport(const SextantCoord coord, const SextantCoord canvasSize) {
 	return dvec3{
 		coord.x * (viewportWidth / canvasSize.x),
@@ -210,7 +204,7 @@ Color traceRay(const Scene& scene, const dvec3 origin, const dvec3 direction,
 	return Color(localColor.category, combinedColor); // always use this object's category
 }
 
-void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
+void rayRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
 	const static Scene scene{
 		{
 			Sphere(dvec3{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500, 0.2),

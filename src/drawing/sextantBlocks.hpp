@@ -40,6 +40,13 @@ class SextantDrawing {
 		void debugPrint() const;
 };
 
+// converts from origin at center to origin at top left
+inline void putPixel(SextantDrawing& canvas, const SextantCoord coord, const Color color) {
+	SextantCoord translated{canvas.getHeight() / 2 - coord.y, canvas.getWidth() / 2 + coord.x};
+	canvas.trySet(translated, color);
+}
+
+
 class WindowedDrawing : public SextantDrawing {
 	private:
 		ncplane* win;

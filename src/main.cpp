@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "raytracer/raytracer.hpp"
+#include "rasterizer/rasterizer.hpp"
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
 
@@ -60,7 +61,7 @@ int main() {
 
 	WindowedDrawing finalDrawing(stdplane);
 	auto render = std::bind(notcurses_render, nc);
-	renderLoop(finalDrawing, EXIT_REQUESTED, render);
+	rasterRenderLoop(finalDrawing, EXIT_REQUESTED, render);
 
 	notcurses_stop(nc);
 	return 0;
