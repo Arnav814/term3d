@@ -22,6 +22,9 @@ struct Category {
 	bool operator!=(const Category& other) const = default;
 };
 
+// TODO: more efficient/cleaner method?
+#define CAPOVERFLOW(calculation) static_cast<uchar>(std::max(std::min(static_cast<int>(calculation), 255), 0))
+
 struct RGB {
 	uchar r;
 	uchar g;
@@ -37,17 +40,17 @@ struct RGB {
 
 	RGB operator*=(const double& magnitude) {
 		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
-		this->r *= magnitude;
-		this->g *= magnitude;
-		this->b *= magnitude;
+		this->r = CAPOVERFLOW(this->r * magnitude);
+		this->g = CAPOVERFLOW(this->g * magnitude);
+		this->b = CAPOVERFLOW(this->b * magnitude);
 		return *this;
 	}
 
 	RGB operator/=(const double& magnitude) {
 		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
-		this->r /= magnitude;
-		this->g /= magnitude;
-		this->b /= magnitude;
+		this->r = CAPOVERFLOW(this->r / magnitude);
+		this->g = CAPOVERFLOW(this->g / magnitude);
+		this->b = CAPOVERFLOW(this->b / magnitude);
 		return *this;
 	}
 
@@ -59,6 +62,30 @@ struct RGB {
 	RGB operator/(const double& magnitude) const {
 		RGB temp{*this};
 		return temp /= magnitude;
+	}
+
+	RGB operator+=(const RGB& color) {
+		this->r = CAPOVERFLOW(this->r + color.r);
+		this->g = CAPOVERFLOW(this->g + color.g);
+		this->b = CAPOVERFLOW(this->b + color.b);
+		return *this;
+	}
+
+	RGB operator-=(const RGB& color) {
+		this->r = CAPOVERFLOW(this->r - color.r);
+		this->g = CAPOVERFLOW(this->g - color.g);
+		this->b = CAPOVERFLOW(this->b - color.b);
+		return *this;
+	}
+
+	RGB operator+(const RGB& color) const {
+		RGB temp{*this};
+		return temp += color;
+	}
+
+	RGB operator-(const RGB color) const {
+		RGB temp{*this};
+		return temp -= color;
 	}
 
 	bool operator==(const RGB& other) const = default;
@@ -97,17 +124,17 @@ struct RGBA {
 
 	RGBA operator*=(const double& magnitude) {
 		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
-		this->r *= magnitude;
-		this->g *= magnitude;
-		this->b *= magnitude;
+		this->r = CAPOVERFLOW(this->r * magnitude);
+		this->g = CAPOVERFLOW(this->g * magnitude);
+		this->b = CAPOVERFLOW(this->b * magnitude);
 		return *this;
 	}
 
 	RGBA operator/=(const double& magnitude) {
 		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
-		this->r /= magnitude;
-		this->g /= magnitude;
-		this->b /= magnitude;
+		this->r = CAPOVERFLOW(this->r / magnitude);
+		this->g = CAPOVERFLOW(this->g / magnitude);
+		this->b = CAPOVERFLOW(this->b / magnitude);
 		return *this;
 	}
 
@@ -121,9 +148,37 @@ struct RGBA {
 		return temp /= magnitude;
 	}
 
+	RGBA operator+=(const RGBA& color) {
+		this->a = CAPOVERFLOW(this->a + color.a);
+		this->r = CAPOVERFLOW(this->r + color.r);
+		this->g = CAPOVERFLOW(this->g + color.g);
+		this->b = CAPOVERFLOW(this->b + color.b);
+		return *this;
+	}
+
+	RGBA operator-=(const RGBA& color) {
+		this->a = CAPOVERFLOW(this->a - color.a);
+		this->r = CAPOVERFLOW(this->r - color.r);
+		this->g = CAPOVERFLOW(this->g - color.g);
+		this->b = CAPOVERFLOW(this->b - color.b);
+		return *this;
+	}
+
+	RGBA operator+(const RGBA& color) const {
+		RGBA temp{*this};
+		return temp += color;
+	}
+
+	RGBA operator-(const RGBA color) const {
+		RGBA temp{*this};
+		return temp -= color;
+	}
+
 	bool operator==(const RGBA& other) const = default;
 	bool operator!=(const RGBA& other) const = default;
 };
+
+#undef CAPOVERFLOW
 
 struct Color {
 	Category category;

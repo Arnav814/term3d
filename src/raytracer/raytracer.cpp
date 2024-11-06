@@ -12,7 +12,8 @@
 const double viewportWidth = 1.0;
 const double viewportHeight = 1.0;
 const double viewportDistance = 1.0;
-const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA(255, 255, 255, 255));
+const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA(0, 0, 0, 255));
+const uint REFLECTION_MAX = 3;
 
 // converts from origin at center to origin at top left
 void putPixel(SextantDrawing& canvas, const SextantCoord coord, const Color color) {
@@ -28,7 +29,13 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 	};
 }
 
-struct Sphere {Coord3d<double> center; double radius; Color color; double specular;};
+struct Sphere {
+	Coord3d<double> center;
+	double radius;
+	Color color;
+	double specular; // [0, inf)
+	double reflective; // [0, 1]
+};
 
 enum class LightType {Point, Directional};
 
@@ -79,6 +86,10 @@ struct Scene {
 	double ambientLight;
 	std::vector<std::shared_ptr<Light>> lights;
 };
+
+Coord3d<double> reflectRay(const Coord3d<double> ray, const Coord3d<double> around) {
+	return around * dotProduct(around, ray) * 2.0 - ray;
+}
 
 // solves the quadratic
 std::pair<double, double> intersectRaySphere(
@@ -151,7 +162,7 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 
 		// specular
 		if (specular != -1) {
-			Coord3d<double> reflected = normal * 2.0 * dotProduct(normal, lightDir) - lightDir;
+			Coord3d<double> reflected = reflectRay(lightDir, normal);
 			double reflectedDotExit = dotProduct(reflected, exitVec);
 			if (reflectedDotExit > 0) {
 				intensity += light->getIntensity() * pow(reflectedDotExit /
@@ -163,28 +174,42 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 	return std::min(intensity, 1.0);
 }
 
-Color traceRay(const Scene& scene, const Coord3d<double> origin,
-		const Coord3d<double> direction, const double tMin, const double tMax) {
+Color traceRay(const Scene& scene, const Coord3d<double> origin, const Coord3d<double> direction,
+		const double tMin, const double tMax, const uint recursionLimit) {
 	auto closest = closestIntersection(scene, origin, direction, tMin, tMax);
-	if (closest.closestT != std::numeric_limits<double>::infinity()) {
-		Coord3d<double> intersection = origin + direction * closest.closestT;
-		Coord3d<double> normal = intersection - closest.sphere.center;
-		normal = normal / normal.length(); // make length == 1
-		Color color = closest.sphere.color;
-		color.color *= computeLighting(scene, intersection, normal, -direction, closest.sphere.specular);
-		return color;
-	} else {
+
+	if (closest.closestT == std::numeric_limits<double>::infinity())
 		return BACKGROUND_COLOR;
+
+	// compute color of object
+	Coord3d<double> intersection = origin + direction * closest.closestT;
+	Coord3d<double> normal = intersection - closest.sphere.center;
+	normal = normal / normal.length(); // make length == 1
+	Color localColor = closest.sphere.color;
+	localColor.color *= computeLighting(scene, intersection, normal, -direction, closest.sphere.specular);
+
+	// if we've hit the recursion limit or the intersected sphere isn't reflective, we're done
+	if (recursionLimit == 0 ||  closest.sphere.reflective <= 0.0) {
+		return localColor;
 	}
+
+	// compute reflected color
+	Coord3d<double> reflected = reflectRay(-direction, normal);
+	Color reflectedColor = traceRay(scene, intersection, reflected, 0.001, tMax, recursionLimit - 1);
+
+	// add them together
+	RGBA combinedColor = localColor.color * (1.0-closest.sphere.reflective) + reflectedColor.color * closest.sphere.reflective;
+
+	return Color(localColor.category, combinedColor); // always use this object's category
 }
 
 void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
 	const static Scene scene{
 		{
-			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500),
-			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500),
-			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10),
-			Sphere(Coord3d{0.0, -5001.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000),
+			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500, 0.2),
+			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500, 0.3),
+			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10, 0.4),
+			Sphere(Coord3d{0.0, -5001.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000, 0.5),
 		},
 		0.2,
 		{
@@ -201,7 +226,7 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 			for (int y = -canvas.getHeight() / 2; y < canvas.getHeight() / 2; y++) {
 				Coord3d direction = canvasToViewport(SextantCoord(y, x), canvas.getSize());
 				Color color = traceRay(scene, origin, direction, viewportDistance,
-					std::numeric_limits<double>::infinity());
+					std::numeric_limits<double>::infinity(), REFLECTION_MAX);
 				putPixel(canvas, SextantCoord(y, x), color);
 			}
 		}
