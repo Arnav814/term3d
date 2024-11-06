@@ -1,13 +1,20 @@
 #include "raytracer.hpp"
-#include "coord3d.hpp"
 #include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
+#include "glm/geometric.hpp"
 #include <csignal>
 #include <format>
 #include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
+#include <glm/ext/vector_double3.hpp>
+#include <glm/ext/matrix_double3x3.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/glm.hpp>
+
+using glm::dvec3;
 
 const double viewportWidth = 1.0;
 const double viewportHeight = 1.0;
@@ -21,8 +28,8 @@ void putPixel(SextantDrawing& canvas, const SextantCoord coord, const Color colo
 	canvas.trySet(translated, color);
 }
 
-Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord canvasSize) {
-	return Coord3d{
+dvec3 canvasToViewport(const SextantCoord coord, const SextantCoord canvasSize) {
+	return dvec3{
 		coord.x * (viewportWidth / canvasSize.x),
 		coord.y * (viewportHeight / canvasSize.y),
 		viewportDistance
@@ -30,7 +37,7 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 }
 
 struct Sphere {
-	Coord3d<double> center;
+	dvec3 center;
 	double radius;
 	Color color;
 	double specular; // [0, inf)
@@ -40,19 +47,19 @@ struct Sphere {
 enum class LightType {Point, Directional};
 
 struct Light {
-	virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const = 0;
+	virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const = 0;
 	virtual double getIntensity() const = 0;
 	virtual LightType getType() const = 0; // screw "good polymorphic design"
 };
 
 class DirectionalLight : public Light {
 		double intensity;
-		Coord3d<double> direction;
+		dvec3 direction;
 
 	public:
-		DirectionalLight(double intensity, Coord3d<double> direction) : intensity(intensity), direction(direction) {}
+		DirectionalLight(double intensity, dvec3 direction) : intensity(intensity), direction(direction) {}
 
-		virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const {
+		virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const {
 			return this->direction;
 		}
 
@@ -65,12 +72,12 @@ class DirectionalLight : public Light {
 
 class PointLight : public Light {
 		double intensity;
-		Coord3d<double> position;
+		dvec3 position;
 
 	public:
-		PointLight(double intensity, Coord3d<double> position) : intensity(intensity), position(position) {}
+		PointLight(double intensity, dvec3 position) : intensity(intensity), position(position) {}
 		
-		virtual Coord3d<double> getDirection(Coord3d<double> point) const {
+		virtual dvec3 getDirection(dvec3 point) const {
 			return this->position - point;
 		}
 
@@ -87,18 +94,18 @@ struct Scene {
 	std::vector<std::shared_ptr<Light>> lights;
 };
 
-Coord3d<double> reflectRay(const Coord3d<double> ray, const Coord3d<double> around) {
-	return around * dotProduct(around, ray) * 2.0 - ray;
+dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
+	return around * glm::dot(around, ray) * 2.0 - ray;
 }
 
 // solves the quadratic
 std::pair<double, double> intersectRaySphere(
-		const Coord3d<double> origin, const Coord3d<double> ray, const Sphere sphere) {
-	Coord3d CO = origin - sphere.center;
+		const dvec3 origin, const dvec3 ray, const Sphere sphere) {
+	dvec3 CO = origin - sphere.center;
 
-	double a = dotProduct(ray, ray);
-	double b = 2 * dotProduct(CO, ray);
-	double c = dotProduct(CO, CO) - pow(sphere.radius, 2);
+	double a = glm::dot(ray, ray);
+	double b = 2 * glm::dot(CO, ray);
+	double c = glm::dot(CO, CO) - pow(sphere.radius, 2);
 
 	double discriminant = pow(b, 2) - 4.0*a*c;
 	if (discriminant < 0)
@@ -112,8 +119,8 @@ std::pair<double, double> intersectRaySphere(
 }
 
 struct SphereDist {Sphere sphere; double closestT;};
-SphereDist closestIntersection(const Scene& scene, const Coord3d<double> origin,
-		const Coord3d<double> direction, const double tMin, const double tMax) {
+SphereDist closestIntersection(const Scene& scene, const dvec3 origin,
+		const dvec3 direction, const double tMin, const double tMax) {
 	double closestT = std::numeric_limits<double>::infinity();
 	Sphere closestSphere{};
 	
@@ -132,12 +139,12 @@ SphereDist closestIntersection(const Scene& scene, const Coord3d<double> origin,
 	return {closestSphere, closestT};
 }
 
-double computeLighting(const Scene& scene, const Coord3d<double> point,
-		const Coord3d<double> normal, const Coord3d<double> exitVec, const double specular) {
+double computeLighting(const Scene& scene, const dvec3 point,
+		const dvec3 normal, const dvec3 exitVec, const double specular) {
 	double intensity = scene.ambientLight;
 
 	for (const std::shared_ptr<const Light> light: scene.lights) {
-		Coord3d<double> lightDir = light->getDirection(point);
+		dvec3 lightDir = light->getDirection(point);
 	
 		// shadow check
 		double tMax;
@@ -154,19 +161,19 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 		}
 
 		// diffuse
-		double normalDotLight = dotProduct(normal, lightDir);
+		double normalDotLight = glm::dot(normal, lightDir);
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight) /
-			             (normal.length() * lightDir.length());
+			             (glm::length(normal) * glm::length(lightDir));
 		}
 
 		// specular
 		if (specular != -1) {
-			Coord3d<double> reflected = reflectRay(lightDir, normal);
-			double reflectedDotExit = dotProduct(reflected, exitVec);
+			dvec3 reflected = reflectRay(lightDir, normal);
+			double reflectedDotExit = glm::dot(reflected, exitVec);
 			if (reflectedDotExit > 0) {
 				intensity += light->getIntensity() * pow(reflectedDotExit /
-				             (reflected.length() * exitVec.length()), specular);
+				             (glm::length(reflected) * glm::length(exitVec)), specular);
 			}
 		}
 	}
@@ -174,7 +181,7 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 	return std::min(intensity, 1.0);
 }
 
-Color traceRay(const Scene& scene, const Coord3d<double> origin, const Coord3d<double> direction,
+Color traceRay(const Scene& scene, const dvec3 origin, const dvec3 direction,
 		const double tMin, const double tMax, const uint recursionLimit) {
 	auto closest = closestIntersection(scene, origin, direction, tMin, tMax);
 
@@ -182,9 +189,9 @@ Color traceRay(const Scene& scene, const Coord3d<double> origin, const Coord3d<d
 		return BACKGROUND_COLOR;
 
 	// compute color of object
-	Coord3d<double> intersection = origin + direction * closest.closestT;
-	Coord3d<double> normal = intersection - closest.sphere.center;
-	normal = normal / normal.length(); // make length == 1
+	dvec3 intersection = origin + direction * closest.closestT;
+	dvec3 normal = intersection - closest.sphere.center;
+	normal = glm::normalize(normal);
 	Color localColor = closest.sphere.color;
 	localColor.color *= computeLighting(scene, intersection, normal, -direction, closest.sphere.specular);
 
@@ -194,7 +201,7 @@ Color traceRay(const Scene& scene, const Coord3d<double> origin, const Coord3d<d
 	}
 
 	// compute reflected color
-	Coord3d<double> reflected = reflectRay(-direction, normal);
+	dvec3 reflected = reflectRay(-direction, normal);
 	Color reflectedColor = traceRay(scene, intersection, reflected, 0.001, tMax, recursionLimit - 1);
 
 	// add them together
@@ -206,25 +213,27 @@ Color traceRay(const Scene& scene, const Coord3d<double> origin, const Coord3d<d
 void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
 	const static Scene scene{
 		{
-			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500, 0.2),
-			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500, 0.3),
-			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10, 0.4),
-			Sphere(Coord3d{0.0, -5001.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000, 0.5),
+			Sphere(dvec3{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500, 0.2),
+			Sphere(dvec3{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500, 0.3),
+			Sphere(dvec3{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10, 0.4),
+			Sphere(dvec3{0.0, -5001.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000, 0.5),
 		},
 		0.2,
 		{
-			std::make_shared<DirectionalLight>(0.2, Coord3d(1.0, 4.0, 4.0)),
-			std::make_shared<PointLight>(0.6, Coord3d(2.0, 1.0, 0.0)),
+			std::make_shared<DirectionalLight>(0.2, dvec3(1.0, 4.0, 4.0)),
+			std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)),
 		}
 	};
 
 	int minDimension = std::min(rawCanvas.getHeight(), rawCanvas.getWidth()/2);
 	SextantDrawing canvas{minDimension, minDimension*2};
-	Coord3d<double> origin = Coord3d<double>();
+	dvec3 origin = dvec3();
+	glm::dmat3x3 cameraRotation = glm::yawPitchRoll(0.1*M_PI, 0.1*M_PI, 0.1*M_PI);
+
 	while (not exit_requested) {
 		for (int x = -canvas.getWidth() / 2; x < canvas.getWidth() / 2; x++) {
 			for (int y = -canvas.getHeight() / 2; y < canvas.getHeight() / 2; y++) {
-				Coord3d direction = canvasToViewport(SextantCoord(y, x), canvas.getSize());
+				dvec3 direction = cameraRotation * canvasToViewport(SextantCoord(y, x), canvas.getSize());
 				Color color = traceRay(scene, origin, direction, viewportDistance,
 					std::numeric_limits<double>::infinity(), REFLECTION_MAX);
 				putPixel(canvas, SextantCoord(y, x), color);

@@ -4,8 +4,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(play3d)
 
+include(FetchContent)
+
 # I don't want to deal with this
-#include(FetchContent)
 #FetchContent_Declare(
 #	notcurses
 #	GIT_REPOSITORY https://github.com/dankamongmen/notcurses.git
@@ -13,6 +14,14 @@ project(play3d)
 #)
 #set(USE_MULTIMEDIA none)
 #FetchContent_MakeAvailable(notcurses)
+
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY https://github.com/g-truc/glm.git
+	GIT_TAG        bf71a834948186f4097caa076cd2663c69a10e1e # v1.0.1
+)
+
+FetchContent_MakeAvailable(glm)
 
 find_package(Boost 1.83.0 REQUIRED)
 
@@ -44,8 +53,9 @@ endif()
 add_executable(play3d main.cpp ${HEADERS} ${SOURCES})
 target_compile_definitions(play3d PRIVATE SIZEOF_SIZE_T=${SIZEOF_SIZE_T})
 target_include_directories(play3d PRIVATE ${Notcurses_INCLUDE_DIRS})
-target_link_libraries(play3d ${Notcurses_LIBRARIES})
-target_link_libraries(play3d Boost::headers)
+target_link_libraries(play3d PRIVATE ${Notcurses_LIBRARIES})
+target_link_libraries(play3d PRIVATE Boost::headers)
+target_link_libraries(play3d PRIVATE glm::glm)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/run.sh
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
