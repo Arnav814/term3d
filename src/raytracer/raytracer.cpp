@@ -228,9 +228,15 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 	int minDimension = std::min(rawCanvas.getHeight(), rawCanvas.getWidth()/2);
 	SextantDrawing canvas{minDimension, minDimension*2};
 	dvec3 origin = dvec3();
-	glm::dmat3x3 cameraRotation = glm::yawPitchRoll(0.1*M_PI, 0.1*M_PI, 0.1*M_PI);
+	glm::dmat3x3 cameraRotation = glm::yawPitchRoll(0.0, 0.0, 0.0);
+	uchar rot = 0;
 
 	while (not exit_requested) {
+		rot++;
+		rot %= 25;
+		cameraRotation = glm::yawPitchRoll(rot / 12.5 * M_PI + M_PI, 0.0, 0.0);
+		origin = dvec3(sin(rot/12.5 * M_PI) * 5, 0.0, cos(rot/12.5 * M_PI) * 5 + 3.5);
+
 		for (int x = -canvas.getWidth() / 2; x < canvas.getWidth() / 2; x++) {
 			for (int y = -canvas.getHeight() / 2; y < canvas.getHeight() / 2; y++) {
 				dvec3 direction = cameraRotation * canvasToViewport(SextantCoord(y, x), canvas.getSize());
@@ -242,7 +248,7 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 		rawCanvas.insert(SextantCoord(0, 0), canvas);
 		rawCanvas.render();
 		refresh();
-		sleep(1);
+		//sleep(1);
 	}
 }
 
