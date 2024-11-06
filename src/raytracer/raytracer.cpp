@@ -3,6 +3,7 @@
 #include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
 #include <csignal>
+#include <format>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -29,9 +30,12 @@ Coord3d<double> canvasToViewport(const SextantCoord coord, const SextantCoord ca
 
 struct Sphere {Coord3d<double> center; double radius; Color color; double specular;};
 
+enum class LightType {Point, Directional};
+
 struct Light {
 	virtual Coord3d<double> getDirection([[maybe_unused]] Coord3d<double> point) const = 0;
 	virtual double getIntensity() const = 0;
+	virtual LightType getType() const = 0; // screw "good polymorphic design"
 };
 
 class DirectionalLight : public Light {
@@ -48,6 +52,8 @@ class DirectionalLight : public Light {
 		virtual double getIntensity() const {
 			return this->intensity;
 		}
+
+		virtual LightType getType() const {return LightType::Directional;}
 };
 
 class PointLight : public Light {
@@ -64,6 +70,8 @@ class PointLight : public Light {
 		virtual double getIntensity() const {
 			return this->intensity;
 		}
+
+		virtual LightType getType() const {return LightType::Point;}
 };
 
 struct Scene {
@@ -81,15 +89,36 @@ std::pair<double, double> intersectRaySphere(
 	double b = 2 * dotProduct(CO, ray);
 	double c = dotProduct(CO, CO) - pow(sphere.radius, 2);
 
-	double discriminant = pow(b, 2) - 4*a*c;
+	double discriminant = pow(b, 2) - 4.0*a*c;
 	if (discriminant < 0)
 		return std::make_pair(std::numeric_limits<double>::infinity(),
 			std::numeric_limits<double>::infinity());
 	
 	return std::make_pair(
-		(-b + sqrt(discriminant)) / (2*a),
-		(-b - sqrt(discriminant)) / (2*a)
+		(-b + sqrt(discriminant)) / (2.0*a),
+		(-b - sqrt(discriminant)) / (2.0*a)
 	);
+}
+
+struct SphereDist {Sphere sphere; double closestT;};
+SphereDist closestIntersection(const Scene& scene, const Coord3d<double> origin,
+		const Coord3d<double> direction, const double tMin, const double tMax) {
+	double closestT = std::numeric_limits<double>::infinity();
+	Sphere closestSphere{};
+	
+	for (const Sphere sphere: scene.spheres) {
+		std::pair<double, double> t = intersectRaySphere(origin, direction, sphere);
+		if (t.first >= tMin && t.first <= tMax && t.first < closestT) {
+			closestT = t.first;
+			closestSphere = sphere;
+		}
+		if (t.second >= tMin && t.second <= tMax && t.second < closestT) {
+			closestT = t.second;
+			closestSphere = sphere;
+		}
+	}
+	
+	return {closestSphere, closestT};
 }
 
 double computeLighting(const Scene& scene, const Coord3d<double> point,
@@ -98,6 +127,20 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 
 	for (const std::shared_ptr<const Light> light: scene.lights) {
 		Coord3d<double> lightDir = light->getDirection(point);
+	
+		// shadow check
+		double tMax;
+		switch(light->getType()) {
+			using enum LightType;
+			case Point: tMax = 1.0; break;
+			case Directional: tMax = std::numeric_limits<double>::infinity(); break;
+		}
+
+		auto sphereDist = closestIntersection(scene, point,
+			lightDir, 0.001, tMax); // can't use numeric_limits::min() because of floating point errors
+		if (sphereDist.closestT != std::numeric_limits<double>::infinity()) {
+			continue;
+		}
 
 		// diffuse
 		double normalDotLight = dotProduct(normal, lightDir);
@@ -120,29 +163,15 @@ double computeLighting(const Scene& scene, const Coord3d<double> point,
 	return std::min(intensity, 1.0);
 }
 
-Color traceRay(const Coord3d<double> origin, const Coord3d<double> direction,
-		const Scene& scene, const double tMin, const double tMax) {
-	double closestT = std::numeric_limits<double>::infinity();
-	std::optional<Sphere> closestSphere{};
-	
-	for (const Sphere sphere: scene.spheres) {
-		std::pair<double, double> t = intersectRaySphere(origin, direction, sphere);
-		if (t.first >= tMin && t.first <= tMax && t.first < closestT) {
-			closestT = t.first;
-			closestSphere = sphere;
-		}
-		if (t.second >= tMin && t.second <= tMax && t.second < closestT) {
-			closestT = t.second;
-			closestSphere = sphere;
-		}
-	}
-
-	if (closestSphere.has_value()) {
-		Coord3d<double> intersection = origin + direction * closestT;
-		Coord3d<double> normal = intersection - closestSphere->center;
+Color traceRay(const Scene& scene, const Coord3d<double> origin,
+		const Coord3d<double> direction, const double tMin, const double tMax) {
+	auto closest = closestIntersection(scene, origin, direction, tMin, tMax);
+	if (closest.closestT != std::numeric_limits<double>::infinity()) {
+		Coord3d<double> intersection = origin + direction * closest.closestT;
+		Coord3d<double> normal = intersection - closest.sphere.center;
 		normal = normal / normal.length(); // make length == 1
-		Color color = closestSphere->color;
-		color.color *= computeLighting(scene, intersection, normal, -direction, closestSphere->specular);
+		Color color = closest.sphere.color;
+		color.color *= computeLighting(scene, intersection, normal, -direction, closest.sphere.specular);
 		return color;
 	} else {
 		return BACKGROUND_COLOR;
@@ -155,12 +184,12 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 			Sphere(Coord3d{0.0, -1.0, 3.0}, 1.0, Color{Category{true, 9}, RGBA{255, 0, 0, 255}}, 500),
 			Sphere(Coord3d{2.0, 0.0, 4.0}, 1.0, Color{Category{true, 10}, RGBA{0, 0, 255, 255}}, 500),
 			Sphere(Coord3d{-2.0, 0.0, 4.0}, 1.0, Color{Category{true, 11}, RGBA{0, 255, 0, 255}}, 10),
-			Sphere(Coord3d{0.0, -5000.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000),
+			Sphere(Coord3d{0.0, -5001.0, 0.0}, 5000.0, Color{Category{true, 12}, RGBA{255, 255, 0, 255}}, 1000),
 		},
 		0.2,
 		{
 			std::make_shared<DirectionalLight>(0.2, Coord3d(1.0, 4.0, 4.0)),
-			std::make_shared<PointLight>(0.6, Coord3d(2.0, 1.0, 0.0))
+			std::make_shared<PointLight>(0.6, Coord3d(2.0, 1.0, 0.0)),
 		}
 	};
 
@@ -171,7 +200,7 @@ void renderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::fun
 		for (int x = -canvas.getWidth() / 2; x < canvas.getWidth() / 2; x++) {
 			for (int y = -canvas.getHeight() / 2; y < canvas.getHeight() / 2; y++) {
 				Coord3d direction = canvasToViewport(SextantCoord(y, x), canvas.getSize());
-				Color color = traceRay(origin, direction, scene, viewportDistance,
+				Color color = traceRay(scene, origin, direction, viewportDistance,
 					std::numeric_limits<double>::infinity());
 				putPixel(canvas, SextantCoord(y, x), color);
 			}
