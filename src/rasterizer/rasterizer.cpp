@@ -6,60 +6,48 @@
 #include <glm/ext/vector_double3.hpp>
 #include <limits>
 
+// TODO: a lot of this stuff should be passed by reference
+
 using glm::dvec3, glm::ivec2;
 
 #define fg Color(Category(false, 2), RGBA(255, 255, 255, 255))
-#define sNaN std::numeric_limits<double>::signaling_NaN()
 
-class Interpolate {
-	ivec2 p0; ivec2 p1;
+// assumes x0 <= x1
+std::vector<double> interpolate(int x0, double y0, int x1, double y1) {
+		// TODO: do these really need to be doubles?
+	if (x0 == x1) // for only one point
+		return {y0};
 
-	Interpolate(ivec2 p0, ivec2 p1) {
-		// ensure p0 is left of p1
-		if (p0.x > p1.x)
-			std::swap(p0, p1);
+	std::vector<double> out;
+	out.reserve(x1 - x0 + 1);
 
-		this->p0 = p0;
-		this->p1 = p1;
+	double slope = (double) (y1 - y0) / (x1 - x0);
+	double y = x0;
+	for (int x = x0; x <= x1; x++) {
+		out.push_back(y);
+		y += slope;
 	}
 
-	class InterpolateIterator : public boost::iterator_facade<InterpolateIterator, double, boost::forward_traversal_tag> {
-		public:
-			InterpolateIterator() : slope(sNaN), x(0), y(sNaN) {}
-			InterpolateIterator(double slope, int x, double y) : slope(slope), x(x), y(y) {}
-		private:
-			friend class boost::iterator_core_access;
-			double slope; int x; double y;
-
-			void increment() {y += slope;}
-
-			// y and slope are uncessary for comparisons this will be used for, and
-			// floating point precision errors would be a pain
-			bool equal(const InterpolateIterator& other) {return this->x == other.x;}
-
-			double dereference() const {return y;}
-	};
-
-	InterpolateIterator begin() const {
-		double slope = (double) (p1.y - p0.y) / (p1.x - p0.x);
-		return {slope, p0.x, static_cast<double>(p0.y)};
-	}
-	
-	InterpolateIterator end() const {
-		return {sNaN, p1.x+1 /* one past the last */, sNaN}; // only need x for equality
-	}
-};
+	return out; // FIXME: Passing a vector like this is horrendously inefficient. Use an iterator.
+}
 
 void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color) {
-	// ensure p0 is left of p1
-	if (p0.x > p1.x)
-		std::swap(p0, p1);
+	if (abs(p0.x - p1.x) > abs(p0.y - p1.y)) { // line is horizontalish
+		if (p0.x > p1.x) // make sure p0 is left of p1
+			std::swap(p0, p1);
 
-	double slope = (double) (p1.y - p0.y) / (p1.x - p0.x);
-	double y = p0.x;
-	for (int x = p0.x; x <= p1.x; x++) {
-		putPixel(canvas, SextantCoord(y, x), color);
-		y += slope;
+		std::vector<double> yVals = interpolate(p0.x, p0.y, p1.x, p1.y);
+		for (int x = p0.x; x <= p1.x; x++) {
+			putPixel(canvas, SextantCoord(yVals.at(x - p0.x), x), color);
+		}
+	} else { // line is verticalish
+		if (p0.y > p1.y) // make sure p0 is under p1
+			std::swap(p0, p1);
+
+		std::vector<double> xVals = interpolate(p0.y, p0.x, p1.y, p1.x);
+		for (int y = p0.y; y <= p1.y; y++) {
+			putPixel(canvas, SextantCoord(y, xVals.at(y - p0.y)), color);
+		}
 	}
 }
 
@@ -70,6 +58,7 @@ void rasterRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, st
 
 	while (not exit_requested) {
 		drawLine(canvas, ivec2(100, 5), ivec2(1, 20), fg);
+		drawLine(canvas, ivec2(0, 10), ivec2(0, -29), fg);
 
 		rawCanvas.clear();
 		rawCanvas.insert(SextantCoord(0, 0), canvas);
