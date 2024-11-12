@@ -5,6 +5,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include "renderable.hpp"
 
 // TODO: a lot of this stuff should be passed by reference
 
@@ -102,6 +103,70 @@ void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, co
 	}
 }
 
+void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
+		TemplatedTriangle<float> intensities, const Color color) {
+	// p0, p1, and p2 = intensities a, b, and c
+	// sort top to bottom, so p0.y < p1.y < p2.y
+	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities.b, intensities.a);}
+	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities.c, intensities.a);}
+	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities.c, intensities.b);}
+
+	// Compute the x coordinates and h values of the triangle edges
+	auto x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
+	auto h01 = interpolate(p0.y, intensities.a, p1.y, intensities.b);
+
+	auto x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
+	auto h12 = interpolate(p1.y, intensities.b, p2.y, intensities.c);
+
+	auto x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
+	auto h02 = interpolate(p0.y, intensities.a, p2.y, intensities.c);
+
+	// Concatenate the short sides
+	x01.pop_back();
+	x01.insert(x01.end(), x12.begin(), x12.end());
+	#define x012 x01 // from here, x01 is reused for both x01 and x12 joined together
+	
+	// h means intensity
+	h01.pop_back();
+	h01.insert(h01.end(), h12.begin(), h12.end());
+	#define h012 h01 // same for h
+
+	// Determine which is left and which is right
+	uint middleIndex = x012.size() / 2; // some arbitrary index
+	std::unique_ptr<std::vector<double>> xLeft;
+	std::unique_ptr<std::vector<double>> xRight;
+	std::unique_ptr<std::vector<double>> hLeft;
+	std::unique_ptr<std::vector<double>> hRight;
+	if (x02.at(middleIndex) < x012.at(middleIndex)) {
+		xLeft = std::make_unique<std::vector<double>>(x02);
+		hLeft = std::make_unique<std::vector<double>>(h02);
+
+		xRight = std::make_unique<std::vector<double>>(x012);
+		hRight = std::make_unique<std::vector<double>>(h012);
+	} else {
+		xLeft = std::make_unique<std::vector<double>>(x012);
+		hLeft = std::make_unique<std::vector<double>>(h012);
+
+		xRight = std::make_unique<std::vector<double>>(x02);
+		hRight = std::make_unique<std::vector<double>>(h02);
+	}
+
+	// Draw the horizontal segments
+	for (int y = p0.y; y <= p2.y; y++) {
+		double rowLeftX = xLeft->at(y - p0.y);
+		double rowRightX = xRight->at(y - p0.y);
+
+		auto rowHVals = interpolate(rowLeftX, hLeft->at(y - p0.y), rowRightX, hRight->at(y - p0.y));
+		for (int x = rowLeftX; x <= rowRightX; x++) {
+			RGBA shadedColor = color.color * rowHVals.at(x - rowLeftX);
+			putPixel(canvas, SextantCoord(y, x), Color(color.category, shadedColor));
+		}
+	}	
+
+	#undef x012
+	#undef h012
+}
+
 // converts a 3d point on the viewplane to a 2d point
 ivec2 viewportToCanvas(const SextantDrawing& canvas, const dvec3 p) {
 	return ivec2(p.x * static_cast<double>(canvas.getHeight() / viewportHeight),
@@ -119,35 +184,8 @@ void rasterRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, st
 	dvec3 origin = dvec3();
 
 	while (not exit_requested) {
-		// The four "front" vertices
-		dvec3 vAf = {-2, -0.5, 5};
-		dvec3 vBf = {-2,  0.5, 5};
-		dvec3 vCf = {-1,  0.5, 5};
-		dvec3 vDf = {-1, -0.5, 5};
-
-		// The four "back" vertices
-		dvec3 vAb = {-2, -0.5, 6};
-		dvec3 vBb = {-2,  0.5, 6};
-		dvec3 vCb = {-1,  0.5, 6};
-		dvec3 vDb = {-1, -0.5, 6};
-
-		// The front face
-		drawLine(canvas, projectVertex(canvas, vAf), projectVertex(canvas, vBf), cblue);
-		drawLine(canvas, projectVertex(canvas, vBf), projectVertex(canvas, vCf), cblue);
-		drawLine(canvas, projectVertex(canvas, vCf), projectVertex(canvas, vDf), cblue);
-		drawLine(canvas, projectVertex(canvas, vDf), projectVertex(canvas, vAf), cblue);
-
-		// The back face
-		drawLine(canvas, projectVertex(canvas, vAb), projectVertex(canvas, vBb), cred);
-		drawLine(canvas, projectVertex(canvas, vBb), projectVertex(canvas, vCb), cred);
-		drawLine(canvas, projectVertex(canvas, vCb), projectVertex(canvas, vDb), cred);
-		drawLine(canvas, projectVertex(canvas, vDb), projectVertex(canvas, vAb), cred);
-
-		// The front-to-back edges
-		drawLine(canvas, projectVertex(canvas, vAf), projectVertex(canvas, vAb), cgreen);
-		drawLine(canvas, projectVertex(canvas, vBf), projectVertex(canvas, vBb), cgreen);
-		drawLine(canvas, projectVertex(canvas, vCf), projectVertex(canvas, vCb), cgreen);
-		drawLine(canvas, projectVertex(canvas, vDf), projectVertex(canvas, vDb), cgreen);
+		drawShadedTriangle(canvas, {-10, -10}, {100, 25}, {50, -30},
+			{0.1, 1.0, 0.5}, cgreen);
 
 		rawCanvas.clear();
 		rawCanvas.insert(SextantCoord(0, 0), canvas);
