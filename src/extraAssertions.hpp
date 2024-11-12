@@ -3,12 +3,16 @@
 #include <cassert>
 #include <iostream>
 #include <execinfo.h>
+#include <limits>
 
 // this file serves as a place for everything that needs to be included everywhere
 
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
+
+#define sNaN_d std::numeric_limits<double>::signaling_NaN()
+#define sNaN_f std::numeric_limits<float>::signaling_NaN()
 
 inline void printTrace() {
 	std::cerr << "Traceback:" << '\n';
