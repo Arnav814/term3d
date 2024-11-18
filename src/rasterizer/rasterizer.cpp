@@ -2,6 +2,7 @@
 #include <boost/range/join.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_double3.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -104,7 +105,7 @@ void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, co
 }
 
 void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
-		TemplatedTriangle<float> intensities, const Color color) {
+		Triangle<float> intensities, const Color color) {
 	// p0, p1, and p2 = intensities a, b, and c
 	// sort top to bottom, so p0.y < p1.y < p2.y
 	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities.b, intensities.a);}
@@ -175,7 +176,33 @@ ivec2 viewportToCanvas(const SextantDrawing& canvas, const dvec3 p) {
 
 // converts a 3d point to a 2d canvas point
 ivec2 projectVertex(const SextantDrawing& canvas, const dvec3 v) {
+	if (v.z == 0) throw std::logic_error("v.z == 0; cannot divide by 0");
 	return viewportToCanvas(canvas, {v.x * viewportDistance / v.z, v.y * viewportDistance / v.z, viewportDistance});
+}
+
+void renderTriangle(SextantDrawing& canvas, const Triangle<ivec2> triangle, Color color) {
+//	std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
+//		glm::to_string(triangle.b), glm::to_string(triangle.c));
+	drawWireframeTriangle(canvas, triangle.a, triangle.b, triangle.c, color);
+}
+
+void renderObject(SextantDrawing& canvas, const Renderable& object) {
+	std::vector<ivec2> projected{};
+	projected.reserve(object.getTriangleCount());
+	for (const dvec3 vertex: object.getPoints()) {
+		projected.push_back(projectVertex(canvas, vertex));
+		raise(SIGINT);
+		std::println(std::cerr, "p: {}", glm::to_string(projected.at(projected.size()-1)));
+	}
+	
+	for (const ColoredTriangle triangle: object.getTriangles()) {
+		renderTriangle(canvas, {
+				projected.at(triangle.triangle.a),
+				projected.at(triangle.triangle.b),
+				projected.at(triangle.triangle.c)
+			}, triangle.color
+		);
+	}
 }
 
 void rasterRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
@@ -184,8 +211,19 @@ void rasterRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, st
 	dvec3 origin = dvec3();
 
 	while (not exit_requested) {
-		drawShadedTriangle(canvas, {-10, -10}, {100, 25}, {50, -30},
-			{0.1, 1.0, 0.5}, cgreen);
+		Cube cube({
+				{1, 1, 1},
+				{2, 2, 2},
+				{3, 3, 3},
+				{4, 4, 4},
+				{5, 5, 5},
+				{6, 6, 6},
+				{7, 7, 7},
+				{8, 8, 8}
+			}, cgreen
+		);
+
+		renderObject(canvas, cube);
 
 		rawCanvas.clear();
 		rawCanvas.insert(SextantCoord(0, 0), canvas);

@@ -34,7 +34,7 @@
 			"description": "Anything for development should eventually inherit from this.",
 			"inherits": "default",
 			"environment": {
-				"CXX_SANITIZE": "-fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fsanitize=bounds",
+				"CXX_SANITIZE": "-fsanitize=address -fsanitize=undefined -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fsanitize=bounds -fsanitize=integer-divide-by-zero -fsanitize=unreachable -fsanitize=shift-base -fsanitize=shift-exponent",
 				"CXX_OPTIMIZATION": "-O0",
 				"CXX_DEBUG": "-g -rdynamic"
 			}
