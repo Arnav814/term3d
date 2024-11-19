@@ -8,12 +8,12 @@ template <typename storeAs> using charArray = std::array<std::array<storeAs, 3>,
 
 struct Category {
 	bool allowMixing : 1;
-	ushort categoryId : 15;
+	ushort id : 15;
 
-	Category(bool allowMixing, ushort categoryId) {
+	Category(bool mix, ushort id) {
 		// I don't get hints for default constructors, so...
-		this->allowMixing = allowMixing;
-		this->categoryId = categoryId;
+		this->allowMixing = mix;
+		this->id = id;
 	}
 
 	Category() : Category(false, 0) { }
@@ -30,10 +30,10 @@ struct RGB {
 	uchar g;
 	uchar b;
 
-	RGB(uchar red, uchar green, uchar blue) {
-		this->r = red;
-		this->g = green;
-		this->b = blue;
+	RGB(uchar r, uchar g, uchar b) {
+		this->r = r;
+		this->g = g;
+		this->b = b;
 	}
 
 	RGB() : RGB(0, 0, 0) { }
@@ -105,11 +105,11 @@ struct RGBA {
 	uchar b;
 	uchar a;
 
-	RGBA(uchar red, uchar green, uchar blue, uchar alpha) {
-		this->r = red;
-		this->g = green;
-		this->b = blue;
-		this->a = alpha;
+	RGBA(uchar r, uchar g, uchar b, uchar a) {
+		this->r = r;
+		this->g = g;
+		this->b = b;
+		this->a = a;
 	}
 
 	RGBA() : RGBA(0, 0, 0, 0) { }

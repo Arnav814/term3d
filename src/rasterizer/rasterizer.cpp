@@ -2,26 +2,39 @@
 #include <boost/range/join.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_double3.hpp>
+#include <glm/ext/vector_double4.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <limits>
 #include <memory>
 #include <vector>
+#include <glm/gtx/euler_angles.hpp>
 #include "renderable.hpp"
 
 // TODO: a lot of this stuff should be passed by reference
 
-using glm::dvec3, glm::ivec2;
-
-const double viewportWidth = 1.0;
-const double viewportHeight = 1.0;
-const double viewportDistance = 1.0;
-const Color BACKGROUND_COLOR = Color(Category(true, 8), RGBA(0, 0, 0, 255));
+using glm::dvec3, glm::dvec4, glm::ivec2;
 
 #define cwhite Color(Category(true, 8), RGBA(255, 255, 255, 255))
-#define cred Color(Category(true, 9), RGBA(255, 0, 0, 255))
-#define cgreen Color(Category(true, 10), RGBA(0, 255, 0, 255))
-#define cblue Color(Category(true, 11), RGBA(0, 0, 255, 255))
-#define cblack Color(Category(true, 12), RGBA(0, 0, 0, 255))
+#define cred Color(Category(true, 8), RGBA(255, 0, 0, 255))
+#define cgreen Color(Category(true, 8), RGBA(0, 255, 0, 255))
+#define cblue Color(Category(true, 8), RGBA(0, 0, 255, 255))
+#define cyellow Color(Category(true, 8), RGBA(255, 255, 0, 255))
+#define cmagenta Color(Category(true, 8), RGBA(255, 0, 255, 255))
+#define ccyan Color(Category(true, 8), RGBA(0, 255, 255, 255))
+#define cblack Color(Category(true, 8), RGBA(0, 0, 0, 255))
+
+struct Camera {
+	double viewportWidth;
+	double viewportHeight;
+	double viewportDistance;
+	Transformation transformation; // TODO: cache inverse somehow
+};
+
+struct Scene {
+	std::vector<Object3D> objects; // TODO: do I need this if it's all pointed to by instances?
+	std::vector<Instance3D> instances;
+	Camera camera;
+	Color bgColor;
+};
 
 // assumes x0 <= x1
 std::vector<double> interpolate(const int x0, const double y0, const int x1, const double y1) {
@@ -108,19 +121,19 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 		Triangle<float> intensities, const Color color) {
 	// p0, p1, and p2 = intensities a, b, and c
 	// sort top to bottom, so p0.y < p1.y < p2.y
-	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities.b, intensities.a);}
-	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities.c, intensities.a);}
-	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities.c, intensities.b);}
+	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities.p1, intensities.p0);}
+	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities.p2, intensities.p0);}
+	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities.p2, intensities.p1);}
 
 	// Compute the x coordinates and h values of the triangle edges
 	auto x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
-	auto h01 = interpolate(p0.y, intensities.a, p1.y, intensities.b);
+	auto h01 = interpolate(p0.y, intensities.p0, p1.y, intensities.p1);
 
 	auto x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
-	auto h12 = interpolate(p1.y, intensities.b, p2.y, intensities.c);
+	auto h12 = interpolate(p1.y, intensities.p1, p2.y, intensities.p2);
 
 	auto x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
-	auto h02 = interpolate(p0.y, intensities.a, p2.y, intensities.c);
+	auto h02 = interpolate(p0.y, intensities.p0, p2.y, intensities.p2);
 
 	// Concatenate the short sides
 	x01.pop_back();
@@ -169,61 +182,108 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 }
 
 // converts a 3d point on the viewplane to a 2d point
-ivec2 viewportToCanvas(const SextantDrawing& canvas, const dvec3 p) {
-	return ivec2(p.x * static_cast<double>(canvas.getHeight() / viewportHeight),
-		p.y * static_cast<double>(canvas.getWidth() / viewportWidth));
+ivec2 viewportToCanvas(const SextantDrawing& canvas, const Camera camera, const dvec3 p) {
+	return ivec2(p.x * static_cast<double>(canvas.getWidth() / camera.viewportWidth),
+		p.y * static_cast<double>(canvas.getHeight() / camera.viewportHeight));
 }
 
 // converts a 3d point to a 2d canvas point
-ivec2 projectVertex(const SextantDrawing& canvas, const dvec3 v) {
+ivec2 projectVertex(const SextantDrawing& canvas, const Camera camera, const dvec3 v) {
 	if (v.z == 0) throw std::logic_error("v.z == 0; cannot divide by 0");
-	return viewportToCanvas(canvas, {v.x * viewportDistance / v.z, v.y * viewportDistance / v.z, viewportDistance});
+	return viewportToCanvas(canvas, camera, 
+		{v.x * camera.viewportDistance / v.z, v.y * camera.viewportDistance / v.z, camera.viewportDistance});
 }
 
 void renderTriangle(SextantDrawing& canvas, const Triangle<ivec2> triangle, Color color) {
 //	std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
 //		glm::to_string(triangle.b), glm::to_string(triangle.c));
-	drawWireframeTriangle(canvas, triangle.a, triangle.b, triangle.c, color);
+	drawWireframeTriangle(canvas, triangle.p0, triangle.p1, triangle.p2, color);
 }
 
-void renderObject(SextantDrawing& canvas, const Renderable& object) {
+void renderInstance(SextantDrawing& canvas, const Camera camera, const Instance3D& objectInst) {
 	std::vector<ivec2> projected{};
-	projected.reserve(object.getTriangleCount());
-	for (const dvec3 vertex: object.getPoints()) {
-		projected.push_back(projectVertex(canvas, vertex));
-		raise(SIGINT);
-		std::println(std::cerr, "p: {}", glm::to_string(projected.at(projected.size()-1)));
+	projected.reserve(objectInst.object->triangles.size());
+	for (const dvec3 vertex: objectInst.object->points) {
+		projected.push_back(projectVertex(canvas, camera, invTransform(transform(vertex, objectInst.transformation), camera.transformation)));
+		//std::println(std::cerr, "p: {}", glm::to_string(projected.at(projected.size()-1)));
 	}
 	
-	for (const ColoredTriangle triangle: object.getTriangles()) {
+	for (const ColoredTriangle triangle: objectInst.object->triangles) {
 		renderTriangle(canvas, {
-				projected.at(triangle.triangle.a),
-				projected.at(triangle.triangle.b),
-				projected.at(triangle.triangle.c)
+				projected.at(triangle.triangle.p0),
+				projected.at(triangle.triangle.p1),
+				projected.at(triangle.triangle.p2)
 			}, triangle.color
 		);
+	}
+}
+
+void renderScene(SextantDrawing& canvas, const Scene& scene) {
+	for (const Instance3D& objectInst: scene.instances) {
+		renderInstance(canvas, scene.camera, objectInst);
 	}
 }
 
 void rasterRenderLoop(WindowedDrawing& rawCanvas, const bool& exit_requested, std::function<int()> refresh) {
 	int minDimension = std::min(rawCanvas.getHeight(), rawCanvas.getWidth()/2);
 	SextantDrawing canvas(minDimension, minDimension*2);
-	dvec3 origin = dvec3();
+	// dvec3 origin = dvec3();
+	
+	Camera camera(1, 1, 1, Transformation(
+		{0, 0, 0},
+		glm::yawPitchRoll<double>(0, 0, 45),
+		1.0
+	));
+
+	Scene scene{{}, {},
+		camera,
+		Color(Category(true, 7), RGBA(0, 0, 0, 255)),
+	};
+
+	Object3D cube({
+		{ 1,  1,  1},
+		{-1,  1,  1},
+		{-1, -1,  1},
+		{ 1, -1,  1},
+		{ 1,  1, -1},
+		{-1,  1, -1},
+		{-1, -1, -1},
+		{ 1, -1, -1}
+		},
+		{
+			{{0, 1, 2}, cred},
+			{{0, 2, 3}, cred},
+			{{4, 0, 3}, cgreen},
+			{{4, 3, 7}, cgreen},
+			{{5, 4, 7}, cblue},
+			{{5, 7, 6}, cblue},
+			{{1, 5, 6}, cyellow},
+			{{1, 6, 2}, cyellow},
+			{{4, 5, 1}, cmagenta},
+			{{4, 1, 0}, cmagenta},
+			{{2, 6, 7}, ccyan},
+			{{2, 7, 3}, ccyan},
+		}
+	);
+	scene.objects.push_back(cube);
+
+	scene.instances.push_back(Instance3D(
+		std::make_shared<Object3D>(cube),
+		{{-1.5, 0, 7},
+		glm::yawPitchRoll<double>(0, 0, 0),
+		1.0}
+	));
+
+	scene.instances.push_back(Instance3D(
+		std::make_shared<Object3D>(cube),
+		{{1.5, 1, 6},
+		glm::yawPitchRoll<double>(45, 45, 45),
+		1.0}
+	));
 
 	while (not exit_requested) {
-		Cube cube({
-				{1, 1, 1},
-				{2, 2, 2},
-				{3, 3, 3},
-				{4, 4, 4},
-				{5, 5, 5},
-				{6, 6, 6},
-				{7, 7, 7},
-				{8, 8, 8}
-			}, cgreen
-		);
-
-		renderObject(canvas, cube);
+		renderScene(canvas, scene);
+		// drawFilledTriangle(canvas, {-30, -30}, {-30, 30}, {30, 30}, Color(Category(false, 4), RGBA(255, 0, 0, 255)));
 
 		rawCanvas.clear();
 		rawCanvas.insert(SextantCoord(0, 0), canvas);

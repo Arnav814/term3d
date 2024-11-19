@@ -15,8 +15,8 @@
 bool categoryCompare(const Category a, const Category b) {
 	// sort by categoryId (less is higher priority) first, then 
 	// allowMixing (false is higher priority)
-	if (a.categoryId != b.categoryId)
-		return a.categoryId < b.categoryId;
+	if (a.id != b.id)
+		return a.id < b.id;
 	else
 		return a.allowMixing < b.allowMixing;
 }
