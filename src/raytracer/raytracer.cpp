@@ -3,7 +3,6 @@
 #include "../extraAssertions.hpp"
 #include "glm/geometric.hpp"
 #include <csignal>
-#include <format>
 #include <limits>
 #include <memory>
 #include <utility>

@@ -25,6 +25,8 @@ FetchContent_MakeAvailable(glm)
 
 find_package(Boost 1.83.0 REQUIRED)
 
+find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
+
 # TODO: make this part more robust (it works on my system!)
 find_path(
 	NOTCURSES_CONFIG_DIR
@@ -39,7 +41,7 @@ find_path(
 #if (NOT PACKAGE_VERSION_COMPATIBLE)
 #	message(FATAL_ERROR "Couldn't find a compatible Notcurses library")
 #endif()
-include(${NOTCURSES_CONFIG}/NotcursesCoreConfig.cmake)
+include(${NOTCURSES_CONFIG_DIR}/NotcursesCoreConfig.cmake)
 
 file(GLOB_RECURSE HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
 file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
@@ -55,6 +57,8 @@ target_compile_definitions(play3d PRIVATE SIZEOF_SIZE_T=${SIZEOF_SIZE_T})
 target_include_directories(play3d PRIVATE ${Notcurses_INCLUDE_DIRS})
 target_link_libraries(play3d PRIVATE ${Notcurses_LIBRARIES})
 target_link_libraries(play3d PRIVATE Boost::headers)
+target_link_libraries(play3d PRIVATE OpenGL::GL)
+target_link_libraries(play3d PRIVATE OpenGL::EGL)
 target_link_libraries(play3d PRIVATE glm::glm)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/run.sh
