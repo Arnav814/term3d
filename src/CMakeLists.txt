@@ -39,7 +39,7 @@ find_path(
 #if (NOT PACKAGE_VERSION_COMPATIBLE)
 #	message(FATAL_ERROR "Couldn't find a compatible Notcurses library")
 #endif()
-include(${NOTCURSES_CONFIG}/NotcursesCoreConfig.cmake)
+include(${NOTCURSES_CONFIG_DIR}/NotcursesCoreConfig.cmake)
 
 file(GLOB_RECURSE HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
 file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
