@@ -64,32 +64,14 @@ void renderInstance(SextantDrawing& canvas, const Camera camera, const Instance3
 	std::vector<ivec2> projected{};
 	projected.reserve(objectInst.object->triangles.size());
 	for (const dvec3 vertex: objectInst.object->points) {
-		dvec3 s1 = transform(vertex, objectInst.transformation);
-		dvec3 s2 = transform(s1, invertTransform(camera.transformation));
-		ivec2 s3 = projectVertex(canvas, camera, s2);
-
-		// std::println(std::cerr, "v:{}", glm::to_string(vertex));
-		// std::println(std::cerr, "s1:{}\ns2:{}\ns3:{}", glm::to_string(s1), glm::to_string(s2), glm::to_string(s3));
-
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
-		homogenous = objectInst.objTransform() * homogenous;
-		// std::println(std::cerr, "h1:{}", glm::to_string(homogenous));
-		// if (canonicalize(homogenous) != s1) raise(SIGINT);
-
-		// std::println(std::cerr, "ctrmat:{}", glm::to_string(camera.camTransform()));
-		// std::println(std::cerr, "invtr:{}", invertTransform(camera.transformation));
-
-		homogenous = camera.camTransform() * homogenous;
-		// std::println(std::cerr, "h2:{}", glm::to_string(homogenous));
-		// if (canonicalize(homogenous) != s2) raise(SIGINT);
-
+		homogenous = camera.camTransform() * objectInst.objTransform() * homogenous;
 		dvec3 homogenous2d =
 			camera.viewportTransform({canvas.getWidth(),
 			canvas.getHeight()}) * homogenous;
 
 		assertGt(abs(homogenous.w), 0.1, "Cannot draw things ON the camera"); // TODO: handle properly
 		glm::dvec2 canvasPoint = canonicalize(homogenous2d);
-		// if (ivec2(canvasPoint) != s3) raise(SIGINT);
 		projected.push_back(canvasPoint);
 	}
 	

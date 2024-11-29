@@ -43,10 +43,6 @@ template <> struct std::formatter<Transform> : std::formatter<string> {
 	}
 };
 
-inline dvec3 transform(const dvec3& vertex, const Transform& transform) {
-	return vertex * transform.rotation * transform.scale + transform.translation;
-}
-
 inline dmat4 parseTransform(const Transform& transform) { // TODO: cache calls to this
 	dmat4 scaleMatrix{1}; // identity matrix
 	scaleMatrix[0][0] = transform.scale.x;

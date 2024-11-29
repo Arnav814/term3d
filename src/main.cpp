@@ -6,11 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "glm/gtx/euler_angles.hpp"
-#include "glm/gtx/string_cast.hpp"
 #include "rasterizer/rasterizer.hpp"
-#include "rasterizer/renderable.hpp"
-#include "rasterizer/triangles.hpp"
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
 
@@ -59,14 +55,6 @@ int main() {
 	// make interrups exit nicely
 	signal(SIGINT, sigHandle);
 	signal(SIGTERM, sigHandle);
-
-	// Transform t{{1, 2, 3}, glm::yawPitchRoll<double>(0, 1, 0.5), {2, 3.4, 0.2}};
-	// t = invertTransform(t);
-	// dvec3 v{1, 2, 3};
-	// dvec3 norm = transform(v, t);
-	// dvec3 homo = canonicalize(parseTransform(t) * dvec4{v.x, v.y, v.z, 1});
-	// std::println(std::cout, "norm: {}\nhomo: {}", glm::to_string(norm), glm::to_string(homo));
-	// if (glm::to_string(norm) != glm::to_string(homo)) std::println(std::cout, "AAAAAAAAAAA");
 
 	setlocale(LC_ALL, "");
 	notcurses* nc = notcurses_core_init(NULL, stdout);
