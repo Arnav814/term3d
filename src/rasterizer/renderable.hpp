@@ -27,7 +27,7 @@ struct Transform {
 	Transform(const dvec3 translation, const glm::dmat3 rotation, const double scale) :
 		translation(translation), rotation(rotation), scale(scale, scale, scale) {}
 	
-	Transform() : Transform({0, 0, 0}, glm::dmat3x3(1 /* identity matrix */), 1.0) {}
+	Transform() : Transform({0, 0, 0}, glm::dmat3(1 /* identity matrix */), 1.0) {}
 };
 
 template <> struct std::formatter<Transform> : std::formatter<string> {

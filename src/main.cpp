@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "rasterizer/controller.hpp"
 #include "rasterizer/rasterizer.hpp"
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
@@ -60,9 +61,7 @@ int main() {
 	notcurses* nc = notcurses_core_init(NULL, stdout);
 	ncplane* stdplane = notcurses_stdplane(nc);
 
-	WindowedDrawing finalDrawing(stdplane);
-	auto render = std::bind(notcurses_render, nc);
-	rasterRenderLoop(finalDrawing, EXIT_REQUESTED, render);
+	renderLoop(nc, stdplane, EXIT_REQUESTED);
 
 	notcurses_stop(nc);
 	return 0;
