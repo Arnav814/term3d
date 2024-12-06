@@ -1,6 +1,7 @@
 #ifndef RASTERIZER_HPP
 #define RASTERIZER_HPP
 #include "../drawing/sextantBlocks.hpp"
+#include "glm/exponential.hpp"
 #include "renderable.hpp"
 
 using glm::dvec3, glm::dvec4, glm::ivec2, glm::dmat4;
@@ -16,10 +17,19 @@ struct Camera {
 		matrix[1][1] = viewportDistance*canvasSize.y / viewportHeight;
 		return matrix;
 	}
+	std::vector<Plane> getClippingPlanes() const { // TODO: allow changing FOV
+		return {
+			{{0, 0, 1}, 0},
+			{{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
+			{{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
+			{{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+			{{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+		};
+	}
 };
 
 struct Scene {
-	std::vector<Object3D> objects; // TODO: do I need this if it's all pointed to by instances?
+	std::vector<std::shared_ptr<Object3D>> objects; // TODO: do I need this if it's all pointed to by instances?
 	std::vector<Instance3D> instances;
 	Camera camera;
 	Color bgColor;

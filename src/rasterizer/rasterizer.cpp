@@ -1,7 +1,5 @@
 #include "rasterizer.hpp"
 #include <boost/range/join.hpp>
-#include <chrono>
-#include <thread>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/ext/vector_double4.hpp>
@@ -59,7 +57,7 @@
 			{{2, 7, 3}, ccyan},
 		}
 	);
-	scene.objects.push_back(cube);
+	scene.objects.push_back(std::make_shared<Object3D>(cube));
 
 	scene.instances.push_back(Instance3D(
 		std::make_shared<Object3D>(cube),
@@ -79,28 +77,48 @@
 	return scene;
 }
 
+// TODO: I can't even with this mess of a function
 static void renderInstance(SextantDrawing& canvas, const Camera& camera, const Instance3D& objectInst) {
-	std::vector<ivec2> projected{};
-	projected.reserve(objectInst.object->triangles.size());
-	for (const dvec3 vertex: objectInst.object->points) {
-		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
-		homogenous = camera.invTransform * objectInst.objTransform() * homogenous;
-		dvec3 homogenous2d =
-			camera.viewportTransform({canvas.getWidth(),
-			canvas.getHeight()}) * homogenous;
-
-		assertGt(abs(homogenous.w), 0.1, "Cannot draw things ON the camera"); // TODO: handle properly
-		glm::dvec2 canvasPoint = canonicalize(homogenous2d);
-		projected.push_back(canvasPoint);
-	}
-	
+	std::vector<std::pair<Color, Triangle<dvec3>>> triangles;
 	for (const ColoredTriangle triangle: objectInst.object->triangles) {
-		renderTriangle(canvas, {
-				projected.at(triangle.triangle.p0),
-				projected.at(triangle.triangle.p1),
-				projected.at(triangle.triangle.p2)
-			}, triangle.color
-		);
+		for (const Triangle<dvec3>& clipped: clipTriangle({
+				objectInst.object->points.at(triangle.triangle.p0),
+				objectInst.object->points.at(triangle.triangle.p1),
+				objectInst.object->points.at(triangle.triangle.p2),
+				}, camera.getClippingPlanes()
+			)) {
+			triangles.push_back(std::make_pair(triangle.color, clipped));
+		}
+	}
+
+	std::vector<std::pair<Color, Triangle<ivec2>>> triangles2d{};
+	triangles2d.reserve(triangles.size());
+	for (const auto& triangle: triangles) {
+		Triangle<ivec2> projected{};
+		uchar vertexIdx = 0;
+
+		for (const dvec3 vertex: {triangle.second.p0, triangle.second.p1, triangle.second.p2}) {
+			dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
+			homogenous = camera.invTransform * objectInst.objTransform() * homogenous;
+			dvec3 homogenous2d =
+				camera.viewportTransform({canvas.getWidth(),
+				canvas.getHeight()}) * homogenous;
+
+			assertGt(abs(homogenous.w), 0.1, "Cannot draw things ON the camera"); // TODO: handle properly
+			glm::dvec2 canvasPoint = canonicalize(homogenous2d);
+			switch (vertexIdx) { // FIXME: I hate this
+				case 0: projected.p0 = canvasPoint; break;
+				case 1: projected.p1 = canvasPoint; break;
+				case 2: projected.p2 = canvasPoint; break;
+			}
+			vertexIdx++;
+		}
+
+		triangles2d.push_back(std::make_pair(triangle.first, projected));
+	}
+
+	for (const auto& triangle: triangles2d) {
+		renderTriangle(canvas, triangle.second, triangle.first);
 	}
 }
 
