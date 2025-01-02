@@ -19,18 +19,19 @@ struct Camera {
 	}
 	std::vector<Plane> getClippingPlanes() const { // TODO: allow changing FOV
 		return {
-			{{0, 0, 1}, 0},
-			{{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
-			{{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
-			{{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
-			{{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+			// {{0, 0, 1}, 0},
+			{{0, 1, 0}, 0}, // temp
+			// {{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
+			// {{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
+			// {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+			// {{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
 		};
 	}
 };
 
 struct Scene {
 	std::vector<std::shared_ptr<Object3D>> objects; // TODO: do I need this if it's all pointed to by instances?
-	std::vector<Instance3D> instances;
+	std::vector<InstanceRef3D> instances;
 	Camera camera;
 	Color bgColor;
 };

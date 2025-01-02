@@ -84,19 +84,19 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 		Triangle<float> intensities, const Color color) {
 	// p0, p1, and p2 = intensities a, b, and c
 	// sort top to bottom, so p0.y < p1.y < p2.y
-	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities.p1, intensities.p0);}
-	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities.p2, intensities.p0);}
-	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities.p2, intensities.p1);}
+	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities[1], intensities[0]);}
+	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities[2], intensities[0]);}
+	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities[2], intensities[1]);}
 
 	// Compute the x coordinates and h values of the triangle edges
 	auto x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
-	auto h01 = interpolate(p0.y, intensities.p0, p1.y, intensities.p1);
+	auto h01 = interpolate(p0.y, intensities[0], p1.y, intensities[1]);
 
 	auto x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
-	auto h12 = interpolate(p1.y, intensities.p1, p2.y, intensities.p2);
+	auto h12 = interpolate(p1.y, intensities[1], p2.y, intensities[2]);
 
 	auto x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
-	auto h02 = interpolate(p0.y, intensities.p0, p2.y, intensities.p2);
+	auto h02 = interpolate(p0.y, intensities[0], p2.y, intensities[2]);
 
 	// Concatenate the short sides
 	x01.pop_back();
@@ -147,6 +147,6 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 void renderTriangle(SextantDrawing& canvas, const Triangle<ivec2> triangle, Color color) {
 //	std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
 //		glm::to_string(triangle.b), glm::to_string(triangle.c));
-	drawWireframeTriangle(canvas, triangle.p0, triangle.p1, triangle.p2, color);
+	drawWireframeTriangle(canvas, triangle[0], triangle[1], triangle[2], color);
 }
 

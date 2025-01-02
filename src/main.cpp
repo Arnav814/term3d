@@ -1,4 +1,3 @@
-#include "drawing/sextantBlocks.hpp"
 #include <clocale>
 #include <csignal>
 #include <exception>
@@ -7,7 +6,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "rasterizer/controller.hpp"
-#include "rasterizer/rasterizer.hpp"
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
 
@@ -47,8 +45,6 @@ void sigHandle([[maybe_unused]] int sig) {
 		abort();
 	}
 }
-
-void pass() {}
 
 int main() {
 	std::set_terminate(termHandler);

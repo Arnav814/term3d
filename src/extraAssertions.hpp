@@ -14,6 +14,8 @@ typedef unsigned int uint;
 #define sNaN_d std::numeric_limits<double>::signaling_NaN()
 #define sNaN_f std::numeric_limits<float>::signaling_NaN()
 
+inline void pass () {} // I <3 python
+
 inline void printTrace() {
 	std::cerr << "Traceback:" << '\n';
 	void* callstack[128];
