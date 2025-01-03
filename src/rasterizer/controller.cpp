@@ -27,6 +27,8 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 				case 's': transform = {{0, 0, 1}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
 				case 'q': transform = {{1, 0, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
 				case 'e': transform = {{-1, 0, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'r': transform = {{0, -1, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'f': transform = {{0, 1, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
 				case 'a': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(-0.1, 0, 0), 1}; break;
 				case 'd': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(0.1, 0, 0), 1}; break;
 			}

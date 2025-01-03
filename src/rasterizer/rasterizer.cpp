@@ -80,16 +80,22 @@
 }
 
 static void renderInstance(SextantDrawing& canvas, const Camera& camera, const InstanceRef3D& objectInst) {
-	std::shared_ptr<const Instance3D> clippedInst = clipInstance(std::make_shared<InstanceRef3D>(objectInst), camera.getClippingPlanes());
-	if (clippedInst == NULL) return;
+	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
-	std::vector<ivec2> projected;
-	projected.reserve(clippedInst->getPoints().size());
-
-	for (const dvec3& vertex: clippedInst->getPoints()) {
-
+	for (dvec3& vertex: copied->getPoints()) {
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
 		homogenous = (camera.invTransform * objectInst.getObjTransform()) * homogenous;
+		vertex = canonicalize(homogenous);
+	}
+
+	clipInstance(copied, camera.getClippingPlanes());
+	if (copied == NULL) return;
+
+	std::vector<ivec2> projected;
+	projected.reserve(copied->getPoints().size());
+
+	for (const dvec3& vertex: copied->getPoints()) {
+		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
 		dvec3 homogenous2d =
 			camera.viewportTransform({canvas.getWidth(),
 			canvas.getHeight()}) * homogenous;
@@ -99,7 +105,7 @@ static void renderInstance(SextantDrawing& canvas, const Camera& camera, const I
 		projected.push_back(canvasPoint);
 	}
 
-	for (const ColoredTriangle& triangle: clippedInst->getTriangles()) {
+	for (const ColoredTriangle& triangle: copied->getTriangles()) {
 		renderTriangle(canvas, {
 				projected[triangle.triangle[0]],
 				projected[triangle.triangle[1]],

@@ -21,7 +21,13 @@ template<typename T> using Triangle = std::array<T, 3>;
 struct ColoredTriangle {
 	Triangle<uint> triangle; // refers to array indexes
 	Color color;
+
+	bool operator==(const ColoredTriangle& other) const = default;
+	bool operator!=(const ColoredTriangle& other) const = default;
 };
+
+#define NO_TRIANGLE ColoredTriangle{{std::numeric_limits<uint>::max(), \
+	std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max()}, Color()}
 
 struct Sphere {
 	dvec3 center; double radius;
@@ -156,70 +162,51 @@ class Object3D {
 		}
 };
 
-// arbitrary 3d instance
-class Instance3D {
+// Uses a pointer to the object to save space.
+// Unfortunately, this doesn't really work for clipping.
+class InstanceRef3D {
 	private:
 		mutable std::optional<dmat4> cachedTransform{};
-
-	protected:
-		Transform transform;
-		Instance3D(const Transform& tr) : transform(tr) {}
-
+		mutable std::optional<Sphere> cachedSphere{};
 	public:
-		virtual const std::vector<dvec3>& getPoints() const = 0;
-		virtual const std::vector<ColoredTriangle>& getTriangles() const = 0;
-		virtual Sphere getBoundingSphere() const = 0;
-
-		void setTransform(const Transform& tr) {
-			this->transform = tr;
-			this->cachedTransform = {};
-		}
-		const Transform& getTransform() const {
-			return this->transform;
-		}
+		std::shared_ptr<Object3D> object3d;
+		Transform transform;
+		InstanceRef3D(const std::shared_ptr<Object3D> object3d, const Transform& tr) :
+			object3d(object3d), transform(tr) {}
 		// parses to a matrix
 		const dmat4& getObjTransform() const {
 			if (not this->cachedTransform.has_value())
 				this->cachedTransform = parseTransform(this->transform);
 			return this->cachedTransform.value();
 		};
-
-		virtual ~Instance3D() = default;
-};
-
-// Uses a pointer to the object to save space.
-// Unfortunately, this doesn't really work for clipping.
-class InstanceRef3D : public Instance3D {
-	private:
-		std::shared_ptr<Object3D> object3d;
-	public:
-		InstanceRef3D(const std::shared_ptr<Object3D> object3d, const Transform& tr) :
-			Instance3D(tr), object3d(object3d) {}
-		virtual Sphere getBoundingSphere() const {return this->object3d->getBoundingSphere();}
-
-		virtual const std::vector<dvec3>& getPoints() const {
-			return this->object3d->getPoints();
-		}
-		virtual const std::vector<ColoredTriangle>& getTriangles() const{
-			return this->object3d->getTriangles();
-		}
-
-		virtual ~InstanceRef3D() = default;
+		Sphere getBoundingSphere() const {
+			if (not this->cachedSphere.has_value())
+				this->cachedSphere = createBoundingSphere(this->object3d->getPoints());
+			return this->cachedSphere.value();
+		};
 };
 
 // Fully Self Contained (SC) instance.
 // Useful for clipping.
-class InstanceSC3D : public Instance3D {
+class InstanceSC3D {
 	private:
 		std::vector<dvec3> points;
 		std::vector<ColoredTriangle> triangles;
+		Transform transform;
+		mutable std::optional<dmat4> cachedTransform{};
 		mutable std::optional<Sphere> cachedSphere{};
 
 	public:
-		InstanceSC3D(const Instance3D& inst) :
-			Instance3D(inst.getTransform()),
-			points(inst.getPoints()),
-			triangles(inst.getTriangles()) {}
+		InstanceSC3D(const InstanceRef3D& ref) :
+			points(ref.object3d->getPoints()),
+			triangles(ref.object3d->getTriangles()),
+			transform(ref.transform),
+			cachedTransform(ref.getObjTransform()),
+			cachedSphere(ref.getBoundingSphere()) {}
+		InstanceSC3D(const InstanceSC3D& inst) :
+			points(inst.points),
+			triangles(inst.triangles),
+			transform(inst.transform) {}
 
 		// @return the added vertex' index
 		[[nodiscard]] uint addVertex(const dvec3& vertex) {
@@ -232,20 +219,37 @@ class InstanceSC3D : public Instance3D {
 			}
 			this->triangles.push_back(triangle);
 		}
-		void rmTriangle(const uint index) {
-			this->triangles.erase(this->triangles.begin() + index);
-		}
 
-		virtual const std::vector<dvec3>& getPoints() const {
+		const std::vector<dvec3>& getPoints() const {
 			return this->points;
 		}
-		virtual const std::vector<ColoredTriangle>& getTriangles() const {
+		const std::vector<ColoredTriangle>& getTriangles() const {
 			return this->triangles;
 		}
-		virtual Sphere getBoundingSphere() const {
+		std::vector<dvec3>& getPoints() {
+			return this->points;
+		}
+		std::vector<ColoredTriangle>& getTriangles() {
+			return this->triangles;
+		}
+
+		Sphere getBoundingSphere() const {
 			if (not this->cachedSphere.has_value())
 				this->cachedSphere = createBoundingSphere(this->points);
 			return this->cachedSphere.value();
+		};
+		void setTransform(const Transform& tr) {
+			this->transform = tr;
+			this->cachedTransform = {};
+		}
+		const Transform& getTransform() const {
+			return this->transform;
+		}
+		// parses to a matrix
+		const dmat4& getObjTransform() const {
+			if (not this->cachedTransform.has_value())
+				this->cachedTransform = parseTransform(this->transform);
+			return this->cachedTransform.value();
 		};
 		virtual ~InstanceSC3D() = default;
 };
@@ -272,7 +276,7 @@ inline void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targ
 		dvec3 vertexA = intersectPlaneSeg(std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
 		dvec3 vertexB = intersectPlaneSeg(std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[2]]), plane);
 
-		inst.rmTriangle(targetIdx);
+		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({{
@@ -294,7 +298,7 @@ inline void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targ
 		uint p1Idx = inst.addVertex(p1Prime);
 		uint p2Idx = inst.addVertex(p2Prime);
 
-		inst.rmTriangle(targetIdx);
+		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		inst.addTriangle({{
 				target[1],
@@ -312,12 +316,13 @@ inline void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targ
 		});
 
 	} else if (numPositive == 0) { // all outside
-		// nothing inside plane
+		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
+
 	}
 }
 
-inline std::shared_ptr<const Instance3D> clipInstance(std::shared_ptr<const Instance3D> inst, const std::vector<Plane>& planes) {
-	std::shared_ptr<InstanceSC3D> copied = NULL; // we only need to make a copy sometimes
+inline void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>& planes) {
+	assert(inst != NULL); // a reference to a pointer... makes sense...
 
 	for (const Plane& plane: planes) {
 		Sphere bounding = inst->getBoundingSphere();
@@ -327,26 +332,22 @@ inline std::shared_ptr<const Instance3D> clipInstance(std::shared_ptr<const Inst
 			pass();
 
 		} else if (distance <= -bounding.radius) { // fully outside
-			return NULL;
+			inst = NULL;
+			return;
 
 		} else { // split
-			if (copied == NULL)
-				copied = std::make_shared<InstanceSC3D>(InstanceSC3D{*inst});
-			
 			// clipping creates more triangles; we don't want to clip them again for no reason
 			uint numTriangles = inst->getTriangles().size();
 
 			for (uint i = 0; i < numTriangles; i++) {
-				clipTriangle(*copied, plane, i);
+				clipTriangle(*inst, plane, i);
 			}
+
+			std::erase(inst->getTriangles(), NO_TRIANGLE);
 		}
 	}
-
-	// if we made a copy, return it
-	if (copied != NULL)
-		return copied;
-	else
-		return inst;
 }
+
+#undef NO_TRIANGLE
 
 #endif /* RENDERABLE_HPP */
