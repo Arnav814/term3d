@@ -7,11 +7,11 @@
 #include <glm/ext/vector_double3.hpp>
 #include <glm/ext/matrix_double3x3.hpp>
 #include <glm/ext/matrix_double4x4.hpp>
-#include "../drawing/setColor.hpp"
-#include "glm/geometric.hpp"
+#include <glm/geometric.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/hash.hpp>
+#include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
 
 using glm::dvec3, glm::dmat4, glm::dvec4;

@@ -1,7 +1,7 @@
 #include "raytracer.hpp"
 #include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
-#include "glm/geometric.hpp"
+#include <glm/geometric.hpp>
 #include <csignal>
 #include <format>
 #include <limits>
@@ -146,6 +146,7 @@ double computeLighting(const Scene& scene, const dvec3 point,
 			using enum LightType;
 			case Point: tMax = 1.0; break;
 			case Directional: tMax = std::numeric_limits<double>::infinity(); break;
+			default: assert(false);
 		}
 
 		auto sphereDist = closestIntersection(scene, point,

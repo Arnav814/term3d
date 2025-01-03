@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 #include <glm/gtx/euler_angles.hpp>
-#include "glm/trigonometric.hpp"
+#include <glm/trigonometric.hpp>
 #include "renderable.hpp"
 #include "triangles.hpp"
 

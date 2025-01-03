@@ -1,7 +1,7 @@
 #ifndef RASTERIZER_HPP
 #define RASTERIZER_HPP
 #include "../drawing/sextantBlocks.hpp"
-#include "glm/exponential.hpp"
+#include <glm/exponential.hpp>
 #include "renderable.hpp"
 
 using glm::dvec3, glm::dvec4, glm::ivec2, glm::dmat4;
