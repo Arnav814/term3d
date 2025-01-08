@@ -1,9 +1,30 @@
 #include "triangles.hpp"
+#include <boost/multi_array.hpp>
+#include <limits>
+
+// converts from origin at center to origin at top left
+template<typename T> inline void putBufPixel(boost::multi_array<T, 2>& buffer, const ivec2 coord, const T val) {
+	ivec2 transformed = {buffer.shape()[0] / 2 - coord.y, buffer.shape()[1] / 2 + coord.x};
+	if (0 <= transformed.y and transformed.y < (int) buffer.shape()[0] and
+			0 <= transformed.x and transformed.x < (int) buffer.shape()[1])
+		buffer[transformed.y][transformed.x] = val;
+}
+
+// converts from origin at center to origin at top left
+template<typename T> inline T getBufPixel(const boost::multi_array<T, 2>& buffer, const ivec2 coord, const T fallback) {
+	ivec2 transformed = {buffer.shape()[0] / 2 - coord.y, buffer.shape()[1] / 2 + coord.x};
+	if (0 <= transformed.y and transformed.y < (int) buffer.shape()[0] and
+			0 <= transformed.x and transformed.x < (int) buffer.shape()[1])
+		return buffer[transformed.y][transformed.x];
+	return fallback;
+}
 
 std::vector<double> interpolate(const int x0, const double y0, const int x1, const double y1) {
 	// TODO: do these really need to be doubles?
 	if (x0 == x1) // for only one point
 		return {y0};
+
+	assertGt(x1, x0, "Can't interpolate backwards");
 
 	std::vector<double> out;
 	out.reserve(x1 - x0 + 1);
@@ -80,6 +101,82 @@ void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, co
 	}
 }
 
+// this function is a mess
+void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
+		Triangle<ivec2> points, Triangle<float> depth, const Color color) {
+	// sort top to bottom, so p0.y < p1.y < p2.y
+	if (points[1].y < points[0].y) {
+		std::swap(depth[1], depth[0]);
+		std::swap(points[1], points[0]);
+	}
+	if (points[2].y < points[0].y) {
+		std::swap(depth[2], depth[0]);
+		std::swap(points[2], points[0]);
+	}
+	if (points[2].y < points[1].y) {
+		std::swap(depth[2], depth[1]);
+		std::swap(points[2], points[1]);
+	}
+
+	// indexes represent y-values
+	std::vector<double> shortSide1 = interpolate(points[0].y, points[0].x, points[1].y, points[1].x);
+	std::vector<double> shortSide2 = interpolate(points[1].y, points[1].x, points[2].y, points[2].x);
+	std::vector<double> longSide =   interpolate(points[0].y, points[0].x, points[2].y, points[2].x);
+
+	// interpolated reciprocal of depth
+	std::vector<double> shortSideDepth1 = interpolate(points[0].y, 1.0/depth[0], points[1].y, 1.0/depth[1]);
+	std::vector<double> shortSideDepth2 = interpolate(points[1].y, 1.0/depth[1], points[2].y, 1.0/depth[2]);
+	std::vector<double> longSideDepth =   interpolate(points[0].y, 1.0/depth[0], points[2].y, 1.0/depth[2]);
+
+	// combine vectors
+	shortSide1.pop_back();
+	// from here, shortSide1 is actually both short sides combined
+	shortSide1.reserve(shortSide1.size() + shortSide2.size());
+	// TODO: don't actually copy here, use boost::join() or something
+	shortSide1.insert(shortSide1.end(), shortSide2.begin(), shortSide2.end());
+
+	// same thing
+	shortSideDepth1.pop_back();
+	shortSideDepth1.reserve(shortSideDepth1.size() + shortSideDepth2.size());
+	shortSideDepth1.insert(shortSideDepth1.end(), shortSideDepth2.begin(), shortSideDepth2.end());
+
+	std::unique_ptr<std::vector<double>> xLeft;
+	std::unique_ptr<std::vector<double>> xRight;
+	std::unique_ptr<std::vector<double>> dLeft;
+	std::unique_ptr<std::vector<double>> dRight;
+	int middleIndex = longSide.size() / 2; // some arbitrary index
+	if (longSide.at(middleIndex) == shortSide1.at(middleIndex) and middleIndex != 0) middleIndex--; // fix problems if length==2
+
+	if (longSide.at(middleIndex) < shortSide1.at(middleIndex)) {
+		xLeft = std::make_unique<std::vector<double>>(longSide);
+		xRight = std::make_unique<std::vector<double>>(shortSide1);
+		dLeft = std::make_unique<std::vector<double>>(longSideDepth);
+		dRight = std::make_unique<std::vector<double>>(shortSideDepth1);
+	} else {
+		xLeft = std::make_unique<std::vector<double>>(shortSide1);
+		xRight = std::make_unique<std::vector<double>>(longSide);
+		dLeft = std::make_unique<std::vector<double>>(shortSideDepth1);
+		dRight = std::make_unique<std::vector<double>>(longSideDepth);
+	}
+
+	for (int y = points[0].y; y <= points[2].y; y++) {
+		int rowLeftX = round(xLeft->at(y - points[0].y));
+		int rowRightX = round(xRight->at(y - points[0].y));
+		assertGtEq(rowRightX, rowLeftX, "right is left of left");
+
+		double rowLeftDepth = dLeft->at(y - points[0].y);
+		double rowRightDepth = dRight->at(y - points[0].y);
+		std::vector<double> rowDepth = interpolate(rowLeftX, rowLeftDepth, rowRightX, rowRightDepth);
+
+		for (int x = rowLeftX; x <= rowRightX; x++) {
+			if (getBufPixel(depthBuffer, {x, y}, std::numeric_limits<float>::infinity()) < rowDepth.at(x - rowLeftX)) {
+				putBufPixel(depthBuffer, {x, y}, (float) rowDepth.at(x - rowLeftX));
+				putPixel(canvas, SextantCoord(y, x), color);
+			}
+		}
+	}
+}
+
 void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 		Triangle<float> intensities, const Color color) {
 	// p0, p1, and p2 = intensities a, b, and c
@@ -144,9 +241,9 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 	#undef h012
 }
 
-void renderTriangle(SextantDrawing& canvas, const Triangle<ivec2> triangle, Color color) {
-//	std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
-//		glm::to_string(triangle.b), glm::to_string(triangle.c));
-	drawWireframeTriangle(canvas, triangle[0], triangle[1], triangle[2], color);
+void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer, const Triangle<ivec2>& triangle, const Triangle<float>& depth, Color color) {
+	// std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
+	// 	glm::to_string(triangle.b), glm::to_string(triangle.c));
+	drawFilledTriangle(canvas, depthBuffer, triangle, depth, color);
 }
 

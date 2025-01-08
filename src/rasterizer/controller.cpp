@@ -13,6 +13,7 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 	while (not exitRequested) {
 		ncinput key;
 		uint32_t inputCode;
+		bool dumpBuf = false;
 		do {
 			inputCode = notcurses_get_nblock(nc, &key);
 			if (inputCode == std::numeric_limits<uint32_t>::max() - 1)
@@ -31,13 +32,14 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 				case 'f': transform = {{0, 1, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
 				case 'a': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(-0.1, 0, 0), 1}; break;
 				case 'd': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(0.1, 0, 0), 1}; break;
+				case 'x': dumpBuf = true; break;
 			}
 			scene.camera.invTransform = parseTransform(transform) * scene.camera.invTransform;
 		} while (inputCode != 0 && key.id != NCKEY_EOF /* TODO: what is this EOF thing */);
 
 		squareDrawing.clear();
 		finalDrawing.clear();
-		renderScene(squareDrawing, scene);
+		renderScene(squareDrawing, scene, dumpBuf);
 		finalDrawing.insert({0, 0}, squareDrawing);
 		finalDrawing.render();
 		notcurses_render(nc);

@@ -4,6 +4,6 @@ STAT=$?
 if [[ STAT -ne 0 ]]; then
 	stty sane
 fi
-cat errors.log 1>&2
+#cat errors.log 1>&2
 exit $STAT
 

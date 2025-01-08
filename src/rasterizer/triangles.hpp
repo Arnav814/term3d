@@ -12,8 +12,12 @@ std::vector<double> interpolate(const int x0, const double y0, const int x1, con
 void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color);
 void drawWireframeTriangle(SextantDrawing& canvas, const ivec2 p0, const ivec2 p1, const ivec2 p2, const Color color);
 void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, const Color color);
+void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
+		Triangle<ivec2> points, Triangle<float> distances, const Color color);
 void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 		Triangle<float> intensities, const Color color);
-void renderTriangle(SextantDrawing& canvas, const Triangle<ivec2> triangle, Color color);
+void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>&
+		depthBuffer, const Triangle<ivec2>& triangle, const Triangle<float>&
+		depth, Color color);
 
 #endif /* TRIANGLES_HPP */

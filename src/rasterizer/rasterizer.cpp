@@ -1,4 +1,5 @@
 #include "rasterizer.hpp"
+#include <boost/multi_array.hpp>
 #include <boost/range/join.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_double3.hpp>
@@ -79,7 +80,8 @@
 	return scene;
 }
 
-static void renderInstance(SextantDrawing& canvas, const Camera& camera, const InstanceRef3D& objectInst) {
+static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
+		const Camera& camera, const InstanceRef3D& objectInst, const bool debug) {
 	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
 	for (dvec3& vertex: copied->getPoints()) {
@@ -105,18 +107,49 @@ static void renderInstance(SextantDrawing& canvas, const Camera& camera, const I
 		projected.push_back(canvasPoint);
 	}
 
+	if (debug) {
+		for (uint i = 0; i < projected.size(); i++) {
+			std::println(std::cerr, "{} {} {}",
+				glm::to_string(projected[i]),
+				glm::to_string(copied->getPoints()[i]), glm::length(copied->getPoints()[i]));
+		}
+	}
+
 	for (const ColoredTriangle& triangle: copied->getTriangles()) {
-		renderTriangle(canvas, {
+		renderTriangle(canvas, depthBuffer, {
 				projected[triangle.triangle[0]],
 				projected[triangle.triangle[1]],
 				projected[triangle.triangle[2]]
+			}, {
+				static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[0]])),
+				static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[1]])),
+				static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[2]])),
 			}, triangle.color);
 	}
 }
 
-void renderScene(SextantDrawing& canvas, const Scene& scene) {
-	for (const InstanceRef3D& objectInst: scene.instances) {
-		renderInstance(canvas, scene.camera, objectInst);
+void renderScene(SextantDrawing& canvas, const Scene& scene, const bool dumpBuf) {
+	boost::multi_array<float, 2> depthBuffer; // TODO: don't reallocate every frame
+	depthBuffer.resize(boost::extents[canvas.getHeight()][canvas.getWidth()]); // coords are (y, x)
+	
+	for (uint y = 0; y < depthBuffer.shape()[0]; y++) {
+		for (uint x = 0; x < depthBuffer.shape()[1]; x++) {
+			depthBuffer[y][x] = 0;
+		}
 	}
+
+	for (const InstanceRef3D& objectInst: scene.instances) {
+		renderInstance(canvas, depthBuffer, scene.camera, objectInst, dumpBuf);
+	}
+
+	if (not dumpBuf) return;
+
+	for (uint y = 0; y < depthBuffer.shape()[0]; y++) {
+		for (uint x = 0; x < depthBuffer.shape()[1]; x++) {
+			std::print(std::cerr, "{:.2f} ", depthBuffer[y][x]);
+		}
+		std::println(std::cerr, "");
+	}
+	std::println(std::cerr, "---------------------------------------------------------");
 }
 
