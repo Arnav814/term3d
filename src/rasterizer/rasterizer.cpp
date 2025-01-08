@@ -9,6 +9,7 @@
 #include <vector>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/trigonometric.hpp>
+#include "common.hpp"
 #include "renderable.hpp"
 #include "triangles.hpp"
 
@@ -81,7 +82,7 @@
 }
 
 static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
-		const Camera& camera, const InstanceRef3D& objectInst, const bool debug) {
+		const Camera& camera, const InstanceRef3D& objectInst) {
 	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
 	for (dvec3& vertex: copied->getPoints()) {
@@ -107,7 +108,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		projected.push_back(canvasPoint);
 	}
 
-	if (debug) {
+	if (debugFrame) {
 		for (uint i = 0; i < projected.size(); i++) {
 			std::println(std::cerr, "{} {} {}",
 				glm::to_string(projected[i]),
@@ -128,7 +129,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 	}
 }
 
-void renderScene(SextantDrawing& canvas, const Scene& scene, const bool dumpBuf) {
+void renderScene(SextantDrawing& canvas, const Scene& scene) {
 	boost::multi_array<float, 2> depthBuffer; // TODO: don't reallocate every frame
 	depthBuffer.resize(boost::extents[canvas.getHeight()][canvas.getWidth()]); // coords are (y, x)
 	
@@ -139,17 +140,17 @@ void renderScene(SextantDrawing& canvas, const Scene& scene, const bool dumpBuf)
 	}
 
 	for (const InstanceRef3D& objectInst: scene.instances) {
-		renderInstance(canvas, depthBuffer, scene.camera, objectInst, dumpBuf);
+		renderInstance(canvas, depthBuffer, scene.camera, objectInst);
 	}
 
-	if (not dumpBuf) return;
-
-	for (uint y = 0; y < depthBuffer.shape()[0]; y++) {
-		for (uint x = 0; x < depthBuffer.shape()[1]; x++) {
-			std::print(std::cerr, "{:.2f} ", depthBuffer[y][x]);
+	if (debugFrame) {
+		for (uint y = 0; y < depthBuffer.shape()[0]; y++) {
+			for (uint x = 0; x < depthBuffer.shape()[1]; x++) {
+				std::print(std::cerr, "{:.2f} ", depthBuffer[y][x]);
+			}
+			std::println(std::cerr, "");
 		}
-		std::println(std::cerr, "");
+		std::println(std::cerr, "---------------------------------------------------------");
 	}
-	std::println(std::cerr, "---------------------------------------------------------");
 }
 

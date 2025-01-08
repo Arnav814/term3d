@@ -35,6 +35,6 @@ struct Scene {
 };
 
 [[nodiscard]] Scene initScene();
-void renderScene(SextantDrawing& canvas, const Scene& scene, const bool dumbBuf);
+void renderScene(SextantDrawing& canvas, const Scene& scene);
 
 #endif /* RASTERIZER_HPP */

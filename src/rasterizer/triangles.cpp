@@ -1,6 +1,7 @@
 #include "triangles.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
+#include "common.hpp"
 
 // converts from origin at center to origin at top left
 template<typename T> inline void putBufPixel(boost::multi_array<T, 2>& buffer, const ivec2 coord, const T val) {
