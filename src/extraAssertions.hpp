@@ -36,7 +36,6 @@ inline void printTrace() {
 			if (!(condition)) { \
 				std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
 					 << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -46,7 +45,6 @@ inline void printTrace() {
 			if (!((value) == (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") equal to `" #target "` (" << target << ") failed in " \
 					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -56,7 +54,6 @@ inline void printTrace() {
 			if (!((value) != (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") not equal to `" #target "` (" << target << ") failed in " \
 					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -66,7 +63,6 @@ inline void printTrace() {
 			if (!((value) > (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") greater than `" #target "` (" << target << ") failed in " \
 					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -76,7 +72,6 @@ inline void printTrace() {
 			if (!((value) >= (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") greater than or equal to `" #target "` (" << target \
 					 << ") failed in " << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -86,7 +81,6 @@ inline void printTrace() {
 			if (!((value) < (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") less than `" #target "` (" << target << ") failed in " \
 					 << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -96,7 +90,6 @@ inline void printTrace() {
 			if (!((value) <= (target))) { \
 				std::cerr << "Assertion `" #value "` (" << value << ") less than or equal to `" #target "` (" << target \
 					 << ") failed in " << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -107,7 +100,6 @@ inline void printTrace() {
 			if (!((min) <= (value) && (value) < (max))) { \
 				std::cerr << "Assertion `" #min "` (" << min << ") <= `" #value "` (" << value << ") < `" #max "` (" << max \
 					 << ") failed in " << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
@@ -117,7 +109,6 @@ inline void printTrace() {
 			if (!((min) <= (value) && (value) <= (max))) { \
 				std::cerr << "Assertion `" #min "` (" << min << ") <= `" #value "` (" << value << ") <= `" #max "` (" << max \
 					 << ") failed in " << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
-				printTrace(); \
 				std::terminate(); \
 			} \
 		} while (false)
