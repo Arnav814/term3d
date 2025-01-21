@@ -5,7 +5,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "rasterizer/interpolate.hpp"
 #include "rasterizer/controller.hpp"
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
@@ -53,17 +52,6 @@ int main() {
 	// make interrups exit nicely
 	signal(SIGINT, sigHandle);
 	signal(SIGTERM, sigHandle);
-
-	Interpolate interpa{-69, -82, -53, -86};
-	Interpolate interpb{-53, -86, -7, -86};
-
-	Collate<1> colla{{interpa}};
-	Collate<1> collb{{interpb}};
-
-	CollateJoin both{colla, collb};
-	for (auto i = both.begin(); i != both.end(); ++i) {
-		std::println(std::cerr, "{}", (*i)[0]);
-	}
 
 	setlocale(LC_ALL, "");
 	notcurses* nc = notcurses_core_init(NULL, stdout);
