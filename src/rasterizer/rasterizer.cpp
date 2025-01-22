@@ -94,6 +94,8 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 	clipInstance(copied, camera.getClippingPlanes());
 	if (copied == NULL) return;
 
+	copied = backFaceCulling(std::move(copied));
+
 	std::vector<ivec2> projected;
 	projected.reserve(copied->getPoints().size());
 

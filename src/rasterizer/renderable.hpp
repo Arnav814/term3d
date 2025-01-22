@@ -16,6 +16,9 @@ using glm::dvec3, glm::dmat4, glm::dvec4;
 
 template<typename T> using Triangle = std::array<T, 3>;
 
+#define NO_TRIANGLE ColoredTriangle{{std::numeric_limits<uint>::max(), \
+	std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max()}, Color()}
+
 struct ColoredTriangle {
 	Triangle<uint> triangle; // refers to array indexes
 	Color color;
@@ -177,6 +180,9 @@ class InstanceSC3D {
 		std::vector<ColoredTriangle>& getTriangles() {
 			return this->triangles;
 		}
+		void clearEmptyTris() {
+			std::erase(this->triangles, NO_TRIANGLE);
+		}
 
 		Sphere getBoundingSphere() const {
 			if (not this->cachedSphere.has_value())
@@ -204,6 +210,7 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx);
 
 void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>& planes);
 
-#undef NO_TRIANGLE
+// should be called with camera-relative coordinates
+std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst);
 
 #endif /* RENDERABLE_HPP */

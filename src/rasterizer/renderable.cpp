@@ -1,8 +1,5 @@
 #include "renderable.hpp"
 
-#define NO_TRIANGLE ColoredTriangle{{std::numeric_limits<uint>::max(), \
-	std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max()}, Color()}
-
 Sphere createBoundingSphere(const std::vector<dvec3>& points) {
 	Sphere output;
 
@@ -61,6 +58,7 @@ Transform invertTransform(const Transform& transform) {
 
 void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) {
 	Triangle<uint> target = inst.getTriangles()[targetIdx].triangle;
+	if (target == NO_TRIANGLE.triangle) return;
 	Color color = inst.getTriangles()[targetIdx].color;
 
 	Triangle<double> distances{};
@@ -146,9 +144,28 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 			for (uint i = 0; i < numTriangles; i++) {
 				clipTriangle(*inst, plane, i);
 			}
-
-			std::erase(inst->getTriangles(), NO_TRIANGLE);
 		}
 	}
+
+	inst->clearEmptyTris();
+}
+
+std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst) {
+	// this algorithm requires vertices to be clockwise
+	for (auto& tri : inst->getTriangles()) {
+		// camera is at {0, 0, 0}, so this is the vector from the camera to triangle
+		dvec3 cameraVector = -inst->getPoints()[tri.triangle[0]];
+
+		dvec3 triVecA = inst->getPoints()[tri.triangle[1]] - inst->getPoints()[tri.triangle[0]];
+		dvec3 triVecB = inst->getPoints()[tri.triangle[2]] - inst->getPoints()[tri.triangle[0]];
+		dvec3 triNormal = glm::cross(triVecA, triVecB); // normal vector of triangle
+
+		// the == case is for directly side on triangles, so don't render them
+		if (glm::dot(triNormal, cameraVector) <= 0)
+			tri = NO_TRIANGLE;
+	}
+
+	inst->clearEmptyTris();
+	return inst;
 }
 
