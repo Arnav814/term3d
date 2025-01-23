@@ -9,6 +9,13 @@ AlignTrailingComments: Never
 AlignArrayOfStructures: Left
 AlignEscapedNewlines: DontAlign
 
+SeparateDefinitionBlocks: Always
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+BinPackArguments: true
+BinPackParameters: true
+
+SortIncludes: CaseInsensitive
+
 IndentWidth: 4
 TabWidth: 4
 UseTab: ForIndentation
