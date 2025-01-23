@@ -21,8 +21,8 @@ Sphere createBoundingSphere(const std::vector<dvec3>& points) {
 }
 
 double signedDistance(const Plane& plane, const dvec3& vertex) {
-	return vertex.x * plane.normal.x + vertex.y * plane.normal.y + vertex.z * plane.normal.z
-	       + plane.distance;
+	return vertex.x * plane.normal.x + vertex.y * plane.normal.y + vertex.z * plane.normal.z +
+	       plane.distance;
 }
 
 dmat4 parseTransform(const Transform& transform) {
@@ -50,9 +50,9 @@ dmat4 parseTransform(const Transform& transform) {
 
 Transform invertTransform(const Transform& transform) {
 	return {
-	        -transform.translation,
-	        glm::inverse(transform.rotation),
-	        {1.0 / transform.scale.x, 1.0 / transform.scale.y, 1.0 / transform.scale.z}
+	    -transform.translation,
+	    glm::inverse(transform.rotation),
+	    {1.0 / transform.scale.x, 1.0 / transform.scale.y, 1.0 / transform.scale.z}
     };
 }
 
@@ -73,32 +73,36 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 	} else if (numPositive == 1) { // 1 vertex inside
 		if (distances[0] >= 0)
 			; // make p0 be the only positive vertex
-		else if (distances[1] >= 0) std::swap(target[0], target[1]);
-		else if (distances[2] >= 0) std::swap(target[0], target[2]);
+		else if (distances[1] >= 0)
+			std::swap(target[0], target[1]);
+		else if (distances[2] >= 0)
+			std::swap(target[0], target[2]);
 
 		dvec3 vertexA = intersectPlaneSeg(
-		        std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
+		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
 		dvec3 vertexB = intersectPlaneSeg(
-		        std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[2]]), plane);
+		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[2]]), plane);
 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({
-		        {target[0], inst.addVertex(vertexA), inst.addVertex(vertexB)},
-                color
+		    {target[0], inst.addVertex(vertexA), inst.addVertex(vertexB)},
+            color
         });
 
 	} else if (numPositive == 2) { // 2 verticies inside
 		if (distances[0] < 0)
 			; // make p0 be the only negative vertex
-		else if (distances[1] < 0) std::swap(target[0], target[1]);
-		else if (distances[2] < 0) std::swap(target[0], target[2]);
+		else if (distances[1] < 0)
+			std::swap(target[0], target[1]);
+		else if (distances[2] < 0)
+			std::swap(target[0], target[2]);
 
 		dvec3 p1Prime = intersectPlaneSeg(
-		        std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
+		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
 		dvec3 p2Prime = intersectPlaneSeg(
-		        std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[2]]), plane);
+		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[2]]), plane);
 
 		uint p1Idx = inst.addVertex(p1Prime);
 		uint p2Idx = inst.addVertex(p2Prime);
@@ -106,12 +110,12 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		inst.addTriangle({
-		        {target[1], p1Idx, target[2]},
-                color
+		    {target[1], p1Idx, target[2]},
+            color
         });
 		inst.addTriangle({
-		        {target[2], p2Idx, p1Idx},
-                color
+		    {target[2], p2Idx, p1Idx},
+            color
         });
 
 	} else if (numPositive == 0) { // all outside
@@ -157,9 +161,11 @@ std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst
 		dvec3 triNormal = glm::cross(triVecA, triVecB); // normal vector of triangle
 
 		// the == case is for directly side on triangles, so don't render them
-		if (glm::dot(triNormal, cameraVector) <= 0) tri = NO_TRIANGLE;
+		if (glm::dot(triNormal, cameraVector) <= 0)
+			tri = NO_TRIANGLE;
 	}
 
 	inst->clearEmptyTris();
 	return inst;
 }
+

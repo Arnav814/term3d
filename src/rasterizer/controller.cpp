@@ -1,9 +1,9 @@
 #include "controller.hpp"
-#include "common.hpp"
-#include "rasterizer.hpp"
 #include <glm/gtx/euler_angles.hpp>
 #include <limits>
 #include <stdexcept>
+#include "rasterizer.hpp"
+#include "common.hpp"
 
 bool debugFrame;
 
@@ -24,58 +24,18 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 
 			Transform transform{};
 			switch (key.id) {
-			case NCKEY_RESIZE:
-				throw std::runtime_error("resize isn't implemented yet"); // TODO: implement resize
-			case NCKEY_SIGNAL: break; // TODO: pause here
-			case 'w':
-				transform = {
-				        {0, 0, -1},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 's':
-				transform = {
-				        {0, 0, 1},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 'q':
-				transform = {
-				        {1, 0, 0},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 'e':
-				transform = {
-				        {-1, 0, 0},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 'r':
-				transform = {
-				        {0, -1, 0},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 'f':
-				transform = {
-				        {0, 1, 0},
-                        glm::yawPitchRoll<double>(0, 0, 0), 1
-                };
-				break;
-			case 'a':
-				transform = {
-				        {0, 0, 0},
-                        glm::yawPitchRoll<double>(-0.1, 0, 0), 1
-                };
-				break;
-			case 'd':
-				transform = {
-				        {0, 0, 0},
-                        glm::yawPitchRoll<double>(0.1, 0, 0), 1
-                };
-				break;
-			case 'x': debugFrame = true; break;
+				case NCKEY_RESIZE:
+					throw std::runtime_error("resize isn't implemented yet"); // TODO: implement resize
+				case NCKEY_SIGNAL: break; // TODO: pause here
+				case 'w': transform = {{0, 0, -1}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 's': transform = {{0, 0, 1}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'q': transform = {{1, 0, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'e': transform = {{-1, 0, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'r': transform = {{0, -1, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'f': transform = {{0, 1, 0}, glm::yawPitchRoll<double>(0, 0, 0), 1}; break;
+				case 'a': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(-0.1, 0, 0), 1}; break;
+				case 'd': transform = {{0, 0, 0}, glm::yawPitchRoll<double>(0.1, 0, 0), 1}; break;
+				case 'x': debugFrame = true; break;
 			}
 			scene.camera.invTransform = parseTransform(transform) * scene.camera.invTransform;
 		} while (inputCode != 0 && key.id != NCKEY_EOF /* TODO: what is this EOF thing */);
@@ -90,3 +50,4 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		// std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
+

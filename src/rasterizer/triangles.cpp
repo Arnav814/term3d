@@ -1,23 +1,21 @@
 #include "triangles.hpp"
-#include "common.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
+#include "common.hpp"
 
 // converts from origin at center to origin at top left
-template <typename T>
-inline void putBufPixel(boost::multi_array<T, 2>& buffer, const ivec2 coord, const T val) {
+template<typename T> inline void putBufPixel(boost::multi_array<T, 2>& buffer, const ivec2 coord, const T val) {
 	ivec2 transformed = {buffer.shape()[0] / 2 - coord.y, buffer.shape()[1] / 2 + coord.x};
-	if (0 <= transformed.y and transformed.y < (int)buffer.shape()[0] and 0 <= transformed.x
-	    and transformed.x < (int)buffer.shape()[1])
+	if (0 <= transformed.y and transformed.y < (int) buffer.shape()[0] and
+			0 <= transformed.x and transformed.x < (int) buffer.shape()[1])
 		buffer[transformed.y][transformed.x] = val;
 }
 
 // converts from origin at center to origin at top left
-template <typename T>
-inline T getBufPixel(const boost::multi_array<T, 2>& buffer, const ivec2 coord, const T fallback) {
+template<typename T> inline T getBufPixel(const boost::multi_array<T, 2>& buffer, const ivec2 coord, const T fallback) {
 	ivec2 transformed = {buffer.shape()[0] / 2 - coord.y, buffer.shape()[1] / 2 + coord.x};
-	if (0 <= transformed.y and transformed.y < (int)buffer.shape()[0] and 0 <= transformed.x
-	    and transformed.x < (int)buffer.shape()[1])
+	if (0 <= transformed.y and transformed.y < (int) buffer.shape()[0] and
+			0 <= transformed.x and transformed.x < (int) buffer.shape()[1])
 		return buffer[transformed.y][transformed.x];
 	return fallback;
 }
@@ -62,11 +60,10 @@ void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color) {
 	}
 }
 
-void drawWireframeTriangle(SextantDrawing& canvas, const ivec2 p0, const ivec2 p1, const ivec2 p2,
-                           const Color color) {
-	drawLine(canvas, p0, p1, color);
-	drawLine(canvas, p1, p2, color);
-	drawLine(canvas, p2, p0, color);
+void drawWireframeTriangle(SextantDrawing& canvas, const ivec2 p0, const ivec2 p1, const ivec2 p2, const Color color) {
+    drawLine(canvas, p0, p1, color);
+    drawLine(canvas, p1, p2, color);
+    drawLine(canvas, p2, p0, color);
 }
 
 void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, const Color color) {
@@ -74,7 +71,7 @@ void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, co
 	if (p1.y < p0.y) std::swap(p1, p0);
 	if (p2.y < p0.y) std::swap(p2, p0);
 	if (p2.y < p1.y) std::swap(p2, p1);
-
+	
 	// indexes represent y-values
 	std::vector<double> shortSide1 = interpolate(p0.y, p0.x, p1.y, p1.x);
 	std::vector<double> shortSide2 = interpolate(p1.y, p1.x, p2.y, p2.x);
@@ -107,7 +104,7 @@ void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, co
 
 // this function is a mess
 void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
-                        Triangle<ivec2> points, Triangle<float> depth, const Color color) {
+		Triangle<ivec2> points, Triangle<float> depth, const Color color) {
 	// sort top to bottom, so p0.y < p1.y < p2.y
 	if (points[1].y < points[0].y) {
 		std::swap(depth[1], depth[0]);
@@ -123,19 +120,14 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	}
 
 	// indexes represent y-values
-	std::vector<double> shortSide1 =
-	        interpolate(points[0].y, points[0].x, points[1].y, points[1].x);
-	std::vector<double> shortSide2 =
-	        interpolate(points[1].y, points[1].x, points[2].y, points[2].x);
-	std::vector<double> longSide = interpolate(points[0].y, points[0].x, points[2].y, points[2].x);
+	std::vector<double> shortSide1 = interpolate(points[0].y, points[0].x, points[1].y, points[1].x);
+	std::vector<double> shortSide2 = interpolate(points[1].y, points[1].x, points[2].y, points[2].x);
+	std::vector<double> longSide =   interpolate(points[0].y, points[0].x, points[2].y, points[2].x);
 
 	// interpolated reciprocal of depth
-	std::vector<double> shortSideDepth1 =
-	        interpolate(points[0].y, 1.0 / depth[0], points[1].y, 1.0 / depth[1]);
-	std::vector<double> shortSideDepth2 =
-	        interpolate(points[1].y, 1.0 / depth[1], points[2].y, 1.0 / depth[2]);
-	std::vector<double> longSideDepth =
-	        interpolate(points[0].y, 1.0 / depth[0], points[2].y, 1.0 / depth[2]);
+	std::vector<double> shortSideDepth1 = interpolate(points[0].y, 1.0/depth[0], points[1].y, 1.0/depth[1]);
+	std::vector<double> shortSideDepth2 = interpolate(points[1].y, 1.0/depth[1], points[2].y, 1.0/depth[2]);
+	std::vector<double> longSideDepth =   interpolate(points[0].y, 1.0/depth[0], points[2].y, 1.0/depth[2]);
 
 	// combine vectors
 	shortSide1.pop_back();
@@ -154,8 +146,7 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	std::unique_ptr<std::vector<double>> dLeft;
 	std::unique_ptr<std::vector<double>> dRight;
 	int middleIndex = longSide.size() / 2; // some arbitrary index
-	if (longSide.at(middleIndex) == shortSide1.at(middleIndex) and middleIndex != 0)
-		middleIndex--; // fix problems if length==2
+	if (longSide.at(middleIndex) == shortSide1.at(middleIndex) and middleIndex != 0) middleIndex--; // fix problems if length==2
 
 	if (longSide.at(middleIndex) < shortSide1.at(middleIndex)) {
 		xLeft = std::make_unique<std::vector<double>>(longSide);
@@ -176,13 +167,11 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 		double rowLeftDepth = dLeft->at(y - points[0].y);
 		double rowRightDepth = dRight->at(y - points[0].y);
-		std::vector<double> rowDepth =
-		        interpolate(rowLeftX, rowLeftDepth, rowRightX, rowRightDepth);
+		std::vector<double> rowDepth = interpolate(rowLeftX, rowLeftDepth, rowRightX, rowRightDepth);
 
 		for (int x = rowLeftX; x <= rowRightX; x++) {
-			if (getBufPixel(depthBuffer, {x, y}, std::numeric_limits<float>::infinity())
-			    < rowDepth.at(x - rowLeftX)) {
-				putBufPixel(depthBuffer, {x, y}, (float)rowDepth.at(x - rowLeftX));
+			if (getBufPixel(depthBuffer, {x, y}, std::numeric_limits<float>::infinity()) < rowDepth.at(x - rowLeftX)) {
+				putBufPixel(depthBuffer, {x, y}, (float) rowDepth.at(x - rowLeftX));
 				putPixel(canvas, SextantCoord(y, x), color);
 			}
 		}
@@ -190,21 +179,12 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 }
 
 void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
-                        Triangle<float> intensities, const Color color) {
+		Triangle<float> intensities, const Color color) {
 	// p0, p1, and p2 = intensities a, b, and c
 	// sort top to bottom, so p0.y < p1.y < p2.y
-	if (p1.y < p0.y) {
-		std::swap(p1, p0);
-		std::swap(intensities[1], intensities[0]);
-	}
-	if (p2.y < p0.y) {
-		std::swap(p2, p0);
-		std::swap(intensities[2], intensities[0]);
-	}
-	if (p2.y < p1.y) {
-		std::swap(p2, p1);
-		std::swap(intensities[2], intensities[1]);
-	}
+	if (p1.y < p0.y) {std::swap(p1, p0); std::swap(intensities[1], intensities[0]);}
+	if (p2.y < p0.y) {std::swap(p2, p0); std::swap(intensities[2], intensities[0]);}
+	if (p2.y < p1.y) {std::swap(p2, p1); std::swap(intensities[2], intensities[1]);}
 
 	// Compute the x coordinates and h values of the triangle edges
 	auto x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
@@ -219,12 +199,12 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 	// Concatenate the short sides
 	x01.pop_back();
 	x01.insert(x01.end(), x12.begin(), x12.end());
-#define x012 x01 // from here, x01 is reused for both x01 and x12 joined together
-
+	#define x012 x01 // from here, x01 is reused for both x01 and x12 joined together
+	
 	// h means intensity
 	h01.pop_back();
 	h01.insert(h01.end(), h12.begin(), h12.end());
-#define h012 h01 // same for h
+	#define h012 h01 // same for h
 
 	// Determine which is left and which is right
 	uint middleIndex = x012.size() / 2; // some arbitrary index
@@ -256,15 +236,15 @@ void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
 			RGBA shadedColor = color.color * rowHVals.at(x - rowLeftX);
 			putPixel(canvas, SextantCoord(y, x), Color(color.category, shadedColor));
 		}
-	}
+	}	
 
-#undef x012
-#undef h012
+	#undef x012
+	#undef h012
 }
 
-void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
-                    const Triangle<ivec2>& triangle, const Triangle<float>& depth, Color color) {
+void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer, const Triangle<ivec2>& triangle, const Triangle<float>& depth, Color color) {
 	// std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
 	// 	glm::to_string(triangle.b), glm::to_string(triangle.c));
 	drawFilledTriangle(canvas, depthBuffer, triangle, depth, color);
 }
+
