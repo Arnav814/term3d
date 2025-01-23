@@ -11,12 +11,24 @@ AlignEscapedNewlines: DontAlign
 
 SeparateDefinitionBlocks: Always
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
 BinPackArguments: true
 BinPackParameters: true
 
 SortIncludes: CaseInsensitive
 
 IndentWidth: 4
+ContinuationIndentWidth: 8
 TabWidth: 4
 UseTab: ForIndentation
+IndentPPDirectives: BeforeHash
+AlignOperands: Align
+BreakBeforeBinaryOperators: NonAssignment
+
+IntegerLiteralSeparator:
+    Decimal: 3
+    Binary: 8 # a byte
+    Hex: 8 # 4 bytes
 
