@@ -6,8 +6,8 @@
 
 // note: do not look at the implementation of this if you value your sanity
 
-#include <utility>
 #include "setColor.hpp"
+#include <utility>
 
 std::pair<charArray<bool>, std::pair<RGB, RGB>> getTrimmedColors(const charArray<Color>& arrayChar);
 

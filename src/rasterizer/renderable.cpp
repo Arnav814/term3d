@@ -21,8 +21,8 @@ Sphere createBoundingSphere(const std::vector<dvec3>& points) {
 }
 
 double signedDistance(const Plane& plane, const dvec3& vertex) {
-	return vertex.x * plane.normal.x + vertex.y * plane.normal.y + vertex.z * plane.normal.z +
-	       plane.distance;
+	return vertex.x * plane.normal.x + vertex.y * plane.normal.y + vertex.z * plane.normal.z
+	       + plane.distance;
 }
 
 dmat4 parseTransform(const Transform& transform) {
@@ -73,10 +73,8 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 	} else if (numPositive == 1) { // 1 vertex inside
 		if (distances[0] >= 0)
 			; // make p0 be the only positive vertex
-		else if (distances[1] >= 0)
-			std::swap(target[0], target[1]);
-		else if (distances[2] >= 0)
-			std::swap(target[0], target[2]);
+		else if (distances[1] >= 0) std::swap(target[0], target[1]);
+		else if (distances[2] >= 0) std::swap(target[0], target[2]);
 
 		dvec3 vertexA = intersectPlaneSeg(
 		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
@@ -94,10 +92,8 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 	} else if (numPositive == 2) { // 2 verticies inside
 		if (distances[0] < 0)
 			; // make p0 be the only negative vertex
-		else if (distances[1] < 0)
-			std::swap(target[0], target[1]);
-		else if (distances[2] < 0)
-			std::swap(target[0], target[2]);
+		else if (distances[1] < 0) std::swap(target[0], target[1]);
+		else if (distances[2] < 0) std::swap(target[0], target[2]);
 
 		dvec3 p1Prime = intersectPlaneSeg(
 		    std::make_pair(inst.getPoints()[target[0]], inst.getPoints()[target[1]]), plane);
@@ -161,11 +157,9 @@ std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst
 		dvec3 triNormal = glm::cross(triVecA, triVecB); // normal vector of triangle
 
 		// the == case is for directly side on triangles, so don't render them
-		if (glm::dot(triNormal, cameraVector) <= 0)
-			tri = NO_TRIANGLE;
+		if (glm::dot(triNormal, cameraVector) <= 0) tri = NO_TRIANGLE;
 	}
 
 	inst->clearEmptyTris();
 	return inst;
 }
-

@@ -7,9 +7,10 @@
 // all inline
 
 struct CharCoord {
-	int y; int x;
+	int y;
+	int x;
 
-	CharCoord() : CharCoord(0, 0) { }
+	CharCoord() : CharCoord(0, 0) {}
 
 	CharCoord(const int y, const int x) {
 		this->y = y;
@@ -36,15 +37,14 @@ struct CharCoord {
 		return this->y == other.y && this->x == other.x;
 	}
 
-	bool operator!=(const CharCoord& other) const {
-		return !(*this == other);
-	}
+	bool operator!=(const CharCoord& other) const { return !(*this == other); }
 };
 
 struct SextantCoord {
-	int y; int x;
+	int y;
+	int x;
 
-	SextantCoord() : SextantCoord(0, 0) { }
+	SextantCoord() : SextantCoord(0, 0) {}
 
 	SextantCoord(const int y, const int x) {
 		this->y = y;
@@ -52,14 +52,14 @@ struct SextantCoord {
 	}
 
 	/*SextantCoord(const SextantCoord& coord) {
-		this->y = coord.y;
-		this->x = coord.x;
+	    this->y = coord.y;
+	    this->x = coord.x;
 	}
 
 	SextantCoord operator=(SextantCoord other) {
-		this->y = other.y;
-		this->x = other.x;
-		return *this;
+	    this->y = other.y;
+	    this->x = other.x;
+	    return *this;
 	}*/
 
 	SextantCoord(const CharCoord& coord) {
@@ -87,69 +87,60 @@ struct SextantCoord {
 		return this->y == other.y && this->x == other.x;
 	}
 
-	bool operator!=(const SextantCoord& other) const {
-		return !(*this == other);
-	}
+	bool operator!=(const SextantCoord& other) const { return !(*this == other); }
 };
 
 // easily loop over a rectangular range of coords
 template <typename coordType> class CoordIterator {
-	private:
-		coordType start;
-		coordType stop;
+  private:
+	coordType start;
+	coordType stop;
 
-	public:
-		class InternalIterator {
-			private:
-				coordType i;
-				int yMin;
-				int yMax;
-			
-			public:
-				InternalIterator(const int yMin, const int yMax, const coordType& start) {
-					this->i = start;
-					this->yMin = yMin;
-					this-> yMax = yMax;
-				}
+  public:
+	class InternalIterator {
+	  private:
+		coordType i;
+		int yMin;
+		int yMax;
 
-				bool operator==(const InternalIterator& other) {
-					return this->i == other.i;
-				}
-
-				bool operator!=(const InternalIterator& other) {
-					return this->i != other.i;
-				}
-
-				InternalIterator operator++() {
-					InternalIterator old = *this;
-					this->i.y++;
-					if (i.y > this->yMax) {
-						this->i.y = this->yMin;
-						this->i.x++;
-					}
-					return old;
-				}
-
-				coordType operator*() {
-					return this->i;
-				}
-		};
-
-		// both start and end are inclusive
-		CoordIterator(const coordType& start, const coordType& stop) {
-			assertLtEq(start.x, stop.x, "Start must be less than or equal to stop");
-			assertLtEq(start.y, stop.y, "Start must be less than or equal to stop");
-			this->start = coordType(start);
-			this->stop = coordType(stop);
+	  public:
+		InternalIterator(const int yMin, const int yMax, const coordType& start) {
+			this->i = start;
+			this->yMin = yMin;
+			this->yMax = yMax;
 		}
 
-		InternalIterator begin() const {
-			return InternalIterator(this->start.y, this->stop.y, start);
-		};
+		bool operator==(const InternalIterator& other) { return this->i == other.i; }
 
-		InternalIterator end() const {
-			return InternalIterator(this->start.y, this->stop.y, coordType(this->start.y, this->stop.x+1));
-		};
+		bool operator!=(const InternalIterator& other) { return this->i != other.i; }
+
+		InternalIterator operator++() {
+			InternalIterator old = *this;
+			this->i.y++;
+			if (i.y > this->yMax) {
+				this->i.y = this->yMin;
+				this->i.x++;
+			}
+			return old;
+		}
+
+		coordType operator*() { return this->i; }
+	};
+
+	// both start and end are inclusive
+	CoordIterator(const coordType& start, const coordType& stop) {
+		assertLtEq(start.x, stop.x, "Start must be less than or equal to stop");
+		assertLtEq(start.y, stop.y, "Start must be less than or equal to stop");
+		this->start = coordType(start);
+		this->stop = coordType(stop);
+	}
+
+	InternalIterator begin() const { return InternalIterator(this->start.y, this->stop.y, start); };
+
+	InternalIterator end() const {
+		return InternalIterator(this->start.y, this->stop.y,
+		                        coordType(this->start.y, this->stop.x + 1));
+	};
 };
 
 #endif /* COORD2D_HPP */

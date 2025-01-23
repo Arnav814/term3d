@@ -1,11 +1,11 @@
+#include "rasterizer/controller.hpp"
 #include <clocale>
 #include <csignal>
 #include <exception>
-#include <notcurses/notcurses.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include "rasterizer/controller.hpp"
+#include <notcurses/notcurses.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 static_assert(CHAR_BIT == 8, "WTF are you compiling this on?!");
 
@@ -20,7 +20,7 @@ void termHandler() {
 	} else {
 		std::cerr << "Terminate called.";
 	}
- 	std::cerr << " Stacktrace follows.\n";
+	std::cerr << " Stacktrace follows.\n";
 
 	void* trace_elems[25];
 	int trace_elem_count = backtrace(trace_elems, 25);
@@ -62,4 +62,3 @@ int main() {
 	notcurses_stop(nc);
 	return 0;
 }
-
