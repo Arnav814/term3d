@@ -20,7 +20,7 @@ BinPackParameters: true
 SortIncludes: CaseInsensitive
 
 IndentWidth: 4
-ContinuationIndentWidth: 8
+ContinuationIndentWidth: 4
 TabWidth: 4
 UseTab: ForIndentation
 IndentPPDirectives: BeforeHash
