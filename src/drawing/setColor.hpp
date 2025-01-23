@@ -16,14 +16,15 @@ struct Category {
 		this->id = id;
 	}
 
-	Category() : Category(false, 0) { }
+	Category() : Category(false, 0) {}
 
 	bool operator==(const Category& other) const = default;
 	bool operator!=(const Category& other) const = default;
 };
 
 // TODO: more efficient/cleaner method?
-#define CAPOVERFLOW(calculation) static_cast<uchar>(std::max(std::min(static_cast<int>(calculation), 255), 0))
+#define CAPOVERFLOW(calculation) \
+	static_cast<uchar>(std::max(std::min(static_cast<int>(calculation), 255), 0))
 
 struct RGB {
 	uchar r;
@@ -36,7 +37,7 @@ struct RGB {
 		this->b = b;
 	}
 
-	RGB() : RGB(0, 0, 0) { }
+	RGB() : RGB(0, 0, 0) {}
 
 	RGB operator*=(const double& magnitude) {
 		assertGtEq(magnitude, 0, "Magnitude cannot be negative");
@@ -95,7 +96,7 @@ struct RGB {
 template <> struct std::hash<RGB> {
 	size_t operator()(const RGB rgb) const {
 		static_assert(sizeof(size_t) >= 3);
-		return (size_t) (rgb.r << 16) | (rgb.g << 8) | rgb.b;
+		return (size_t)(rgb.r << 16) | (rgb.g << 8) | rgb.b;
 	}
 };
 
@@ -112,14 +113,12 @@ struct RGBA {
 		this->a = a;
 	}
 
-	RGBA() : RGBA(0, 0, 0, 0) { }
+	RGBA() : RGBA(0, 0, 0, 0) {}
 
 	RGB applyAlpha() const {
-		return RGB(
-			this->r * (static_cast<float>(this->a) / 255.0),
-			this->g * (static_cast<float>(this->a) / 255.0),
-			this->b * (static_cast<float>(this->a) / 255.0)
-		);
+		return RGB(this->r * (static_cast<float>(this->a) / 255.0),
+		           this->g * (static_cast<float>(this->a) / 255.0),
+		           this->b * (static_cast<float>(this->a) / 255.0));
 	}
 
 	RGBA operator*=(const double& magnitude) {
