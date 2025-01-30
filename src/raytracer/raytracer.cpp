@@ -78,7 +78,7 @@ struct Scene {
 	std::vector<std::shared_ptr<Light>> lights;
 };
 
-dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
+static dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
 	return around * glm::dot(around, ray) * 2.0 - ray;
 }
 
@@ -125,7 +125,7 @@ SphereDist closestIntersection(const Scene& scene, const dvec3 origin, const dve
 	return {closestSphere, closestT};
 }
 
-double computeLighting(const Scene& scene, const dvec3 point, const dvec3 normal,
+static double computeLighting(const Scene& scene, const dvec3 point, const dvec3 normal,
                        const dvec3 exitVec, const double specular) {
 	double intensity = scene.ambientLight;
 

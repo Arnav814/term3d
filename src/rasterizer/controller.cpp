@@ -1,6 +1,7 @@
 #include "controller.hpp"
 #include "common.hpp"
 #include "rasterizer.hpp"
+#include "renderable.hpp"
 #include <glm/gtx/euler_angles.hpp>
 #include <limits>
 #include <stdexcept>
@@ -80,10 +81,27 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 			scene.camera.invTransform = parseTransform(transform) * scene.camera.invTransform;
 		} while (inputCode != 0 && key.id != NCKEY_EOF /* TODO: what is this EOF thing */);
 
+		static bool frameIndicator = true;
+		frameIndicator = not frameIndicator;
+
 		squareDrawing.clear();
 		finalDrawing.clear();
 		renderScene(squareDrawing, scene);
 		finalDrawing.insert({0, 0}, squareDrawing);
+
+		if (frameIndicator)
+			finalDrawing.set(
+			    SextantCoord{
+			        0, 0
+            },
+			    Color{Category{false, 1}, RGBA{255, 255, 255, 255}});
+		else
+			finalDrawing.set(
+			    SextantCoord{
+			        0, 0
+            },
+			    Color{Category{false, 1}, RGBA{0, 0, 0, 255}});
+
 		finalDrawing.render();
 		notcurses_render(nc);
 

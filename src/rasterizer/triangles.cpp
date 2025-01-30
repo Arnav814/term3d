@@ -1,7 +1,9 @@
 #include "triangles.hpp"
 #include "common.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
+#include <memory>
 
 // converts from origin at center to origin at top left
 template <typename T>
@@ -42,6 +44,64 @@ std::vector<double> interpolate(const int x0, const double y0, const int x1, con
 	return out; // FIXME: Passing a vector like this is horrendously inefficient. Use an iterator.
 }
 
+// interpolate a member of Elem
+template <typename Elem, typename Field, typename LambdaType>
+void interpolateField(std::vector<Elem>& baseVector, LambdaType getElemRef, const int x0,
+                      const double y0, const int x1, const double y1) {
+	// TODO: do these really need to be doubles?
+
+	assertEq(baseVector.size(), static_cast<uint>(x1 - x0 + 1),
+	         "baseVector must be set to the correct size beforehand.");
+
+	if (x0 == x1) { // for only one point
+		getElemRef(baseVector[0]) = y0;
+		return;
+	}
+
+	assertGt(x1, x0, "Can't interpolate backwards");
+
+	double slope = (double)(y1 - y0) / (x1 - x0);
+	double y = y0;
+	for (int x = 0; x <= x1 - x0; x++) {
+		getElemRef(baseVector[x]) = y;
+		y += slope;
+	}
+}
+
+static dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
+	return around * glm::dot(around, ray) * 2.0 - ray;
+}
+
+static double computeLighting(const dvec3 point, const dvec3 normal, const double specular,
+                              const double ambientLight,
+                              const std::vector<std::shared_ptr<Light>> lights) {
+	double intensity = ambientLight;
+
+	for (const std::shared_ptr<const Light> light : lights) {
+		dvec3 lightDir = light->getDirection(point);
+
+		// diffuse
+		double normalDotLight = glm::dot(normal, lightDir);
+		if (normalDotLight > 0) { // ignore lights behind the surface
+			intensity += (light->getIntensity() * normalDotLight)
+			             / (glm::length(normal) * glm::length(lightDir));
+		}
+
+		// specular
+		if (specular != -1) {
+			dvec3 reflected = reflectRay(lightDir, normal);
+			double reflectedDotExit = glm::dot(reflected, -point);
+			if (reflectedDotExit > 0) {
+				intensity += light->getIntensity()
+				             * pow(reflectedDotExit / (glm::length(reflected) * glm::length(point)),
+				                   specular);
+			}
+		}
+	}
+
+	return std::min(intensity, 1.0);
+}
+
 void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color) {
 	if (abs(p0.x - p1.x) > abs(p0.y - p1.y)) { // line is horizontalish
 		if (p0.x > p1.x) // make sure p0 is left of p1
@@ -69,73 +129,80 @@ void drawWireframeTriangle(SextantDrawing& canvas, const ivec2 p0, const ivec2 p
 	drawLine(canvas, p2, p0, color);
 }
 
-void drawFilledTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2, const Color color) {
-	// sort top to bottom, so p0.y < p1.y < p2.y
-	if (p1.y < p0.y) std::swap(p1, p0);
-	if (p2.y < p0.y) std::swap(p2, p0);
-	if (p2.y < p1.y) std::swap(p2, p1);
+struct InterpElems {
+	double x; // x value (duh)
+	double invDepth; // 1 / depth
+	double normalX; // interpolate x, y, and z of the normal vector
+	double normalY;
+	double normalZ;
+};
 
-	// indexes represent y-values
-	std::vector<double> shortSide1 = interpolate(p0.y, p0.x, p1.y, p1.x);
-	std::vector<double> shortSide2 = interpolate(p1.y, p1.x, p2.y, p2.x);
-	std::vector<double> longSide = interpolate(p0.y, p0.x, p2.y, p2.x);
-
-	// combine vectors
-	shortSide1.pop_back();
-	// from here, shortSide1 is actually both short sides combined
-	shortSide1.reserve(shortSide1.size() + shortSide2.size());
-	// TODO: don't actually copy here, use boost::join() or something
-	shortSide1.insert(shortSide1.end(), shortSide2.begin(), shortSide2.end());
-
-	std::unique_ptr<std::vector<double>> xLeft;
-	std::unique_ptr<std::vector<double>> xRight;
-	int middleIndex = longSide.size() / 2; // some arbitrary index
-	if (longSide.at(middleIndex) < shortSide1.at(middleIndex)) {
-		xLeft = std::make_unique<std::vector<double>>(longSide);
-		xRight = std::make_unique<std::vector<double>>(shortSide1);
-	} else {
-		xLeft = std::make_unique<std::vector<double>>(shortSide1);
-		xRight = std::make_unique<std::vector<double>>(longSide);
-	}
-
-	for (int y = p0.y; y <= p2.y; y++) {
-		for (int x = xLeft->at(y - p0.y); x <= xRight->at(y - p0.y); x++) {
-			putPixel(canvas, SextantCoord(y, x), color);
-		}
-	}
-}
+struct RowElems {
+	double invDepth; // 1 / depth
+	double normalX; // interpolate x, y, and z of the normal vector
+	double normalY;
+	double normalZ;
+};
 
 // this function is a mess
 void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
-                        Triangle<ivec2> points, Triangle<float> depth, const Color color) {
+                        Triangle<ivec2> points, Triangle<float> depth, Triangle<dvec3> normals,
+                        const Color color, const double viewportDistance, const double ambientLight,
+                        const double specular, const std::vector<std::shared_ptr<Light>>& lights) {
 	// sort top to bottom, so p0.y < p1.y < p2.y
 	if (points[1].y < points[0].y) {
 		std::swap(depth[1], depth[0]);
 		std::swap(points[1], points[0]);
+		std::swap(normals[1], normals[0]);
 	}
 	if (points[2].y < points[0].y) {
 		std::swap(depth[2], depth[0]);
 		std::swap(points[2], points[0]);
+		std::swap(normals[2], normals[0]);
 	}
 	if (points[2].y < points[1].y) {
 		std::swap(depth[2], depth[1]);
 		std::swap(points[2], points[1]);
+		std::swap(normals[2], normals[1]);
 	}
 
-	// indexes represent y-values
-	std::vector<double> shortSide1 =
-	    interpolate(points[0].y, points[0].x, points[1].y, points[1].x);
-	std::vector<double> shortSide2 =
-	    interpolate(points[1].y, points[1].x, points[2].y, points[2].x);
-	std::vector<double> longSide = interpolate(points[0].y, points[0].x, points[2].y, points[2].x);
+	// interpolate a member of a struct with macro hax
+#define interpField(vec, field, x0, y0, x1, y1) \
+	do { \
+		auto getField = \
+		    [](decltype(vec)::value_type& elem) -> decltype(decltype(vec)::value_type::field)& { \
+			return elem.field; \
+		}; \
+		interpolateField<decltype(vec)::value_type, decltype(decltype(vec)::value_type::field), \
+		                 decltype(getField)>((vec), getField, (x0), (y0), (x1), (y1)); \
+	} while (false)
 
-	// interpolated reciprocal of depth
-	std::vector<double> shortSideDepth1 =
-	    interpolate(points[0].y, 1.0 / depth[0], points[1].y, 1.0 / depth[1]);
-	std::vector<double> shortSideDepth2 =
-	    interpolate(points[1].y, 1.0 / depth[1], points[2].y, 1.0 / depth[2]);
-	std::vector<double> longSideDepth =
-	    interpolate(points[0].y, 1.0 / depth[0], points[2].y, 1.0 / depth[2]);
+	std::vector<InterpElems> shortSide1{
+	    static_cast<uint>(points[1].y - points[0].y + 1), InterpElems{0, 0, 0, 0, 0}
+    };
+	interpField(shortSide1, x, points[0].y, points[0].x, points[1].y, points[1].x);
+	interpField(shortSide1, invDepth, points[0].y, 1.0 / depth[0], points[1].y, 1.0 / depth[1]);
+	interpField(shortSide1, normalX, points[0].y, normals[0].x, points[1].y, normals[1].x);
+	interpField(shortSide1, normalY, points[0].y, normals[0].y, points[1].y, normals[1].y);
+	interpField(shortSide1, normalZ, points[0].y, normals[0].z, points[1].y, normals[1].z);
+
+	std::vector<InterpElems> shortSide2{
+	    static_cast<uint>(points[2].y - points[1].y + 1), InterpElems{0, 0, 0, 0, 0}
+    };
+	interpField(shortSide2, x, points[1].y, points[1].x, points[2].y, points[2].x);
+	interpField(shortSide2, invDepth, points[1].y, 1.0 / depth[1], points[2].y, 1.0 / depth[2]);
+	interpField(shortSide2, normalX, points[1].y, normals[1].x, points[2].y, normals[2].x);
+	interpField(shortSide2, normalY, points[1].y, normals[1].y, points[2].y, normals[2].y);
+	interpField(shortSide2, normalZ, points[1].y, normals[1].z, points[2].y, normals[2].z);
+
+	std::vector<InterpElems> longSide{
+	    static_cast<uint>(points[2].y - points[0].y + 1), InterpElems{0, 0, 0, 0, 0}
+    };
+	interpField(longSide, x, points[0].y, points[0].x, points[2].y, points[2].x);
+	interpField(longSide, invDepth, points[0].y, 1.0 / depth[0], points[2].y, 1.0 / depth[2]);
+	interpField(longSide, normalX, points[0].y, normals[0].x, points[2].y, normals[2].x);
+	interpField(longSide, normalY, points[0].y, normals[0].y, points[2].y, normals[2].y);
+	interpField(longSide, normalZ, points[0].y, normals[0].z, points[2].y, normals[2].z);
 
 	// combine vectors
 	shortSide1.pop_back();
@@ -144,127 +211,74 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	// TODO: don't actually copy here, use boost::join() or something
 	shortSide1.insert(shortSide1.end(), shortSide2.begin(), shortSide2.end());
 
-	// same thing
-	shortSideDepth1.pop_back();
-	shortSideDepth1.reserve(shortSideDepth1.size() + shortSideDepth2.size());
-	shortSideDepth1.insert(shortSideDepth1.end(), shortSideDepth2.begin(), shortSideDepth2.end());
-
-	std::unique_ptr<std::vector<double>> xLeft;
-	std::unique_ptr<std::vector<double>> xRight;
-	std::unique_ptr<std::vector<double>> dLeft;
-	std::unique_ptr<std::vector<double>> dRight;
+	std::unique_ptr<std::vector<InterpElems>> left;
+	std::unique_ptr<std::vector<InterpElems>> right;
 	int middleIndex = longSide.size() / 2; // some arbitrary index
-	if (longSide.at(middleIndex) == shortSide1.at(middleIndex) and middleIndex != 0)
+	if (longSide.at(middleIndex).x == shortSide1.at(middleIndex).x and middleIndex != 0)
 		middleIndex--; // fix problems if length==2
 
-	if (longSide.at(middleIndex) < shortSide1.at(middleIndex)) {
-		xLeft = std::make_unique<std::vector<double>>(longSide);
-		xRight = std::make_unique<std::vector<double>>(shortSide1);
-		dLeft = std::make_unique<std::vector<double>>(longSideDepth);
-		dRight = std::make_unique<std::vector<double>>(shortSideDepth1);
+	if (longSide.at(middleIndex).x < shortSide1.at(middleIndex).x) {
+		left = std::make_unique<std::vector<InterpElems>>(longSide);
+		right = std::make_unique<std::vector<InterpElems>>(shortSide1);
 	} else {
-		xLeft = std::make_unique<std::vector<double>>(shortSide1);
-		xRight = std::make_unique<std::vector<double>>(longSide);
-		dLeft = std::make_unique<std::vector<double>>(shortSideDepth1);
-		dRight = std::make_unique<std::vector<double>>(longSideDepth);
+		left = std::make_unique<std::vector<InterpElems>>(shortSide1);
+		right = std::make_unique<std::vector<InterpElems>>(longSide);
 	}
 
 	for (int y = points[0].y; y <= points[2].y; y++) {
-		int rowLeftX = round(xLeft->at(y - points[0].y));
-		int rowRightX = round(xRight->at(y - points[0].y));
+		InterpElems rowLeft = left->at(y - points[0].y);
+		InterpElems rowRight = right->at(y - points[0].y);
+		int rowLeftX = round(rowLeft.x);
+		int rowRightX = round(rowRight.x);
 		assertGtEq(rowRightX, rowLeftX, "right is left of left");
 
-		double rowLeftDepth = dLeft->at(y - points[0].y);
-		double rowRightDepth = dRight->at(y - points[0].y);
-		std::vector<double> rowDepth =
-		    interpolate(rowLeftX, rowLeftDepth, rowRightX, rowRightDepth);
+		std::vector<RowElems> row{
+		    static_cast<uint>(rowRightX - rowLeftX + 1), RowElems{0, 0, 0, 0}
+        };
+
+		interpField(row, invDepth, rowLeftX, rowLeft.invDepth, rowRightX, rowRight.invDepth);
+		interpField(row, normalX, rowLeftX, rowLeft.normalX, rowRightX, rowRight.normalX);
+		interpField(row, normalY, rowLeftX, rowLeft.normalY, rowRightX, rowRight.normalY);
+		interpField(row, normalZ, rowLeftX, rowLeft.normalZ, rowRightX, rowRight.normalZ);
 
 		for (int x = rowLeftX; x <= rowRightX; x++) {
+			RowElems pixel = row.at(x - rowLeftX);
+			double invDepth = pixel.invDepth;
 			if (getBufPixel(depthBuffer, {x, y}, std::numeric_limits<float>::infinity())
-			    < rowDepth.at(x - rowLeftX)) {
-				putBufPixel(depthBuffer, {x, y}, (float)rowDepth.at(x - rowLeftX));
-				putPixel(canvas, SextantCoord(y, x), color);
+			    < invDepth) {
+				// because the camera is at {0, 0, 0},
+				// the camera to point vector is the same as the point itself
+				dvec3 camToDrawnPoint = {(double)x / (viewportDistance * invDepth),
+				                         (double)y / (viewportDistance * invDepth), 1. / invDepth};
+				dvec3 normal = {pixel.normalX, pixel.normalY, pixel.normalZ};
+				double lighting =
+				    computeLighting(camToDrawnPoint, normal, specular, ambientLight, lights);
+				RGBA newColor = color.color * lighting;
+
+				if (debugFrame)
+					std::println(
+					    std::cerr,
+					    "pixel ({}, {}): normal: {}, cam to point: {}, depth: {}, lighting: {}", x,
+					    y, glm::to_string(normal), glm::to_string(camToDrawnPoint), 1 / invDepth,
+					    lighting);
+
+				putBufPixel(depthBuffer, {x, y}, (float)invDepth);
+				putPixel(canvas, SextantCoord(y, x), Color(color.category, newColor));
 			}
 		}
 	}
-}
-
-void drawShadedTriangle(SextantDrawing& canvas, ivec2 p0, ivec2 p1, ivec2 p2,
-                        Triangle<float> intensities, const Color color) {
-	// p0, p1, and p2 = intensities a, b, and c
-	// sort top to bottom, so p0.y < p1.y < p2.y
-	if (p1.y < p0.y) {
-		std::swap(p1, p0);
-		std::swap(intensities[1], intensities[0]);
-	}
-	if (p2.y < p0.y) {
-		std::swap(p2, p0);
-		std::swap(intensities[2], intensities[0]);
-	}
-	if (p2.y < p1.y) {
-		std::swap(p2, p1);
-		std::swap(intensities[2], intensities[1]);
-	}
-
-	// Compute the x coordinates and h values of the triangle edges
-	auto x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
-	auto h01 = interpolate(p0.y, intensities[0], p1.y, intensities[1]);
-
-	auto x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
-	auto h12 = interpolate(p1.y, intensities[1], p2.y, intensities[2]);
-
-	auto x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
-	auto h02 = interpolate(p0.y, intensities[0], p2.y, intensities[2]);
-
-	// Concatenate the short sides
-	x01.pop_back();
-	x01.insert(x01.end(), x12.begin(), x12.end());
-#define x012 x01 // from here, x01 is reused for both x01 and x12 joined together
-
-	// h means intensity
-	h01.pop_back();
-	h01.insert(h01.end(), h12.begin(), h12.end());
-#define h012 h01 // same for h
-
-	// Determine which is left and which is right
-	uint middleIndex = x012.size() / 2; // some arbitrary index
-	std::unique_ptr<std::vector<double>> xLeft;
-	std::unique_ptr<std::vector<double>> xRight;
-	std::unique_ptr<std::vector<double>> hLeft;
-	std::unique_ptr<std::vector<double>> hRight;
-	if (x02.at(middleIndex) < x012.at(middleIndex)) {
-		xLeft = std::make_unique<std::vector<double>>(x02);
-		hLeft = std::make_unique<std::vector<double>>(h02);
-
-		xRight = std::make_unique<std::vector<double>>(x012);
-		hRight = std::make_unique<std::vector<double>>(h012);
-	} else {
-		xLeft = std::make_unique<std::vector<double>>(x012);
-		hLeft = std::make_unique<std::vector<double>>(h012);
-
-		xRight = std::make_unique<std::vector<double>>(x02);
-		hRight = std::make_unique<std::vector<double>>(h02);
-	}
-
-	// Draw the horizontal segments
-	for (int y = p0.y; y <= p2.y; y++) {
-		double rowLeftX = xLeft->at(y - p0.y);
-		double rowRightX = xRight->at(y - p0.y);
-
-		auto rowHVals = interpolate(rowLeftX, hLeft->at(y - p0.y), rowRightX, hRight->at(y - p0.y));
-		for (int x = rowLeftX; x <= rowRightX; x++) {
-			RGBA shadedColor = color.color * rowHVals.at(x - rowLeftX);
-			putPixel(canvas, SextantCoord(y, x), Color(color.category, shadedColor));
-		}
-	}
-
-#undef x012
-#undef h012
+#undef interpField
 }
 
 void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
-                    const Triangle<ivec2>& triangle, const Triangle<float>& depth, Color color) {
-	// std::println(std::cerr, "p0: {}, p1: {}, p2: {} ", glm::to_string(triangle.a),
-	// 	glm::to_string(triangle.b), glm::to_string(triangle.c));
-	drawFilledTriangle(canvas, depthBuffer, triangle, depth, color);
+                    const Triangle<ivec2>& triangle, const Triangle<float>& depth,
+                    const Triangle<dvec3> normals, const Color color, const double viewportDistance,
+                    const double ambientLight, const double specular,
+                    const std::vector<std::shared_ptr<Light>> lights) {
+	if (debugFrame) {
+		std::println(std::cerr, "drawing tri: p0: {}, p1: {}, p2: {}", glm::to_string(triangle[0]),
+		             glm::to_string(triangle[1]), glm::to_string(triangle[2]));
+	}
+	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color, viewportDistance,
+	                   ambientLight, specular, lights);
 }

@@ -16,6 +16,7 @@ AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: Inline
 BinPackArguments: true
 BinPackParameters: true
+InsertNewlineAtEOF: true
 
 SortIncludes: CaseInsensitive
 

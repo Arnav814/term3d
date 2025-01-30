@@ -20,12 +20,13 @@ template <typename T> using Triangle = std::array<T, 3>;
 	ColoredTriangle { \
 		{std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max(), \
 		 std::numeric_limits<uint>::max()}, \
-		    Color() \
+		    Color(), {} \
 	}
 
 struct ColoredTriangle {
 	Triangle<uint> triangle; // refers to array indexes
 	Color color;
+	Triangle<dvec3> normals;
 
 	bool operator==(const ColoredTriangle& other) const = default;
 	bool operator!=(const ColoredTriangle& other) const = default;
@@ -99,14 +100,37 @@ class Object3D {
 	mutable std::optional<Sphere> cachedSphere{};
 	std::vector<dvec3> points;
 	std::vector<ColoredTriangle> triangles;
+	double specular;
 
   public:
-	Object3D(const std::vector<dvec3>& points, const std::vector<ColoredTriangle> triangles)
-	    : points(points), triangles(triangles) {}
+	Object3D(const std::vector<dvec3>& points, const std::vector<ColoredTriangle> triangles,
+	         const double specular)
+	    : points(points), triangles(triangles), specular(specular) {}
 
 	const std::vector<dvec3>& getPoints() const { return this->points; }
 
 	const std::vector<ColoredTriangle>& getTriangles() const { return this->triangles; }
+
+	std::vector<dvec3>& getPoints() { return this->points; }
+
+	std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+
+	double getSpecular() const { return this->specular; }
+
+	// @return the added vertex's index
+	[[nodiscard]] uint addVertex(const dvec3& vertex) {
+		this->points.push_back(vertex);
+		return this->points.size() - 1;
+	}
+
+	void addTriangle(const ColoredTriangle& triangle) {
+		for (uint i = 0; i < 3; i++) {
+			assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
+		}
+		this->triangles.push_back(triangle);
+	}
+
+	void clearEmptyTris() { std::erase(this->triangles, NO_TRIANGLE); }
 
 	const Sphere& getBoundingSphere() const {
 		if (not this->cachedSphere.has_value())
@@ -119,13 +143,13 @@ class Object3D {
 // Unfortunately, this doesn't really work for clipping.
 class InstanceRef3D {
   private:
+	friend class InstanceSC3D;
+	std::shared_ptr<Object3D> object3d;
+	Transform transform;
 	mutable std::optional<dmat4> cachedTransform{};
 	mutable std::optional<Sphere> cachedSphere{};
 
   public:
-	std::shared_ptr<Object3D> object3d;
-	Transform transform;
-
 	InstanceRef3D(const std::shared_ptr<Object3D> object3d, const Transform& tr)
 	    : object3d(object3d), transform(tr) {}
 
@@ -150,19 +174,21 @@ class InstanceSC3D {
 	std::vector<dvec3> points;
 	std::vector<ColoredTriangle> triangles;
 	Transform transform;
+	double specular;
 	mutable std::optional<dmat4> cachedTransform{};
 	mutable std::optional<Sphere> cachedSphere{};
 
   public:
 	InstanceSC3D(const InstanceRef3D& ref)
 	    : points(ref.object3d->getPoints()), triangles(ref.object3d->getTriangles()),
-	      transform(ref.transform), cachedTransform(ref.getObjTransform()),
-	      cachedSphere(ref.getBoundingSphere()) {}
+	      transform(ref.transform), specular(ref.object3d->getSpecular()),
+	      cachedTransform(ref.getObjTransform()), cachedSphere(ref.getBoundingSphere()) {}
 
 	InstanceSC3D(const InstanceSC3D& inst)
-	    : points(inst.points), triangles(inst.triangles), transform(inst.transform) {}
+	    : points(inst.points), triangles(inst.triangles), transform(inst.transform),
+	      specular(inst.specular) {}
 
-	// @return the added vertex' index
+	// @return the added vertex's index
 	[[nodiscard]] uint addVertex(const dvec3& vertex) {
 		this->points.push_back(vertex);
 		return this->points.size() - 1;
@@ -198,6 +224,8 @@ class InstanceSC3D {
 
 	const Transform& getTransform() const { return this->transform; }
 
+	double getSpecular() const { return this->specular; }
+
 	// parses to a matrix
 	const dmat4& getObjTransform() const {
 		if (not this->cachedTransform.has_value())
@@ -215,5 +243,52 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 
 // should be called with camera-relative coordinates
 std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst);
+
+enum class LightType { Point, Directional };
+
+class Light {
+  public:
+	virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const = 0;
+	virtual double getIntensity() const = 0;
+	virtual LightType getType() const = 0; // screw "good polymorphic design"
+	virtual ~Light() = default;
+};
+
+class DirectionalLight : public Light {
+	double intensity;
+	dvec3 direction;
+
+  public:
+	DirectionalLight(double intensity, dvec3 direction)
+	    : intensity(intensity), direction(direction) {}
+
+	virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const { return this->direction; }
+
+	virtual double getIntensity() const { return this->intensity; }
+
+	dvec3 getDirection() const { return this->direction; }
+
+	virtual LightType getType() const { return LightType::Directional; }
+
+	virtual ~DirectionalLight() = default;
+};
+
+class PointLight : public Light {
+	double intensity;
+	dvec3 position;
+
+  public:
+	PointLight(double intensity, dvec3 position) : intensity(intensity), position(position) {}
+
+	virtual dvec3 getDirection(dvec3 point) const { return this->position - point; }
+
+	virtual double getIntensity() const { return this->intensity; }
+
+	dvec3 getPosition() const { return this->position; }
+
+	virtual LightType getType() const { return LightType::Point; }
+
+	virtual ~PointLight() = default;
+};
 
 #endif /* RENDERABLE_HPP */
