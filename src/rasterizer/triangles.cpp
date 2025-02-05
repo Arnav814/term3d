@@ -1,6 +1,7 @@
 #include "triangles.hpp"
-#include "common.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "renderable.hpp"
+#include "structures.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
 #include <memory>
@@ -80,11 +81,17 @@ static double computeLighting(const dvec3 point, const dvec3 normal, const doubl
 	for (const std::shared_ptr<const Light> light : lights) {
 		dvec3 lightDir = light->getDirection(point);
 
+		if (debugFrame) std::print(std::cerr, "[light from vec {}:", glm::to_string(lightDir));
+
 		// diffuse
 		double normalDotLight = glm::dot(normal, lightDir);
+		if (debugFrame) std::print(std::cerr, "ndl:{}, ", normalDotLight);
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight)
 			             / (glm::length(normal) * glm::length(lightDir));
+			if (debugFrame) std::print(std::cerr, "intensity:{}", intensity);
+		} else if (debugFrame) {
+			std::print(std::cerr, "skipped");
 		}
 
 		// specular
@@ -97,6 +104,8 @@ static double computeLighting(const dvec3 point, const dvec3 normal, const doubl
 				                   specular);
 			}
 		}
+
+		if (debugFrame) std::print(std::cerr, "], ");
 	}
 
 	return std::min(intensity, 1.0);
@@ -129,6 +138,7 @@ void drawWireframeTriangle(SextantDrawing& canvas, const ivec2 p0, const ivec2 p
 	drawLine(canvas, p2, p0, color);
 }
 
+// interpolated on the y axis
 struct InterpElems {
 	double x; // x value (duh)
 	double invDepth; // 1 / depth
@@ -137,6 +147,7 @@ struct InterpElems {
 	double normalZ;
 };
 
+// interpolated for each row (the x-axis)
 struct RowElems {
 	double invDepth; // 1 / depth
 	double normalX; // interpolate x, y, and z of the normal vector
@@ -147,8 +158,8 @@ struct RowElems {
 // this function is a mess
 void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                         Triangle<ivec2> points, Triangle<float> depth, Triangle<dvec3> normals,
-                        const Color color, const double viewportDistance, const double ambientLight,
-                        const double specular, const std::vector<std::shared_ptr<Light>>& lights) {
+                        const Color color, const double ambientLight, const double specular,
+                        const Camera& camera, const std::vector<std::shared_ptr<Light>>& lights) {
 	// sort top to bottom, so p0.y < p1.y < p2.y
 	if (points[1].y < points[0].y) {
 		std::swap(depth[1], depth[0]);
@@ -165,6 +176,8 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 		std::swap(points[2], points[1]);
 		std::swap(normals[2], normals[1]);
 	}
+
+	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
 
 	// interpolate a member of a struct with macro hax
 #define interpField(vec, field, x0, y0, x1, y1) \
@@ -246,21 +259,37 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 			double invDepth = pixel.invDepth;
 			if (getBufPixel(depthBuffer, {x, y}, std::numeric_limits<float>::infinity())
 			    < invDepth) {
+				if (debugFrame) std::print(std::cerr, "pixel ({}, {}): ", x, y);
+
+				dvec3 viewportPoint{(x * camera.viewportWidth) / canvasSize.x,
+				                    (y * camera.viewportHeight) / canvasSize.y,
+				                    camera.viewportDistance};
+
+				double depth = 1. / invDepth;
+				double scaleFactor = depth / camera.viewportDistance;
 				// because the camera is at {0, 0, 0},
 				// the camera to point vector is the same as the point itself
-				dvec3 camToDrawnPoint = {(double)x / (viewportDistance * invDepth),
-				                         (double)y / (viewportDistance * invDepth), 1. / invDepth};
+				dvec3 camToDrawnPoint{viewportPoint.x * scaleFactor, viewportPoint.y * scaleFactor,
+				                      0 /* set to a placeholder */};
+				camToDrawnPoint.z =
+				    sqrt(pow(depth, 2) - pow(camToDrawnPoint.x, 2) - pow(camToDrawnPoint.y, 2));
+
 				dvec3 normal = {pixel.normalX, pixel.normalY, pixel.normalZ};
 				double lighting =
 				    computeLighting(camToDrawnPoint, normal, specular, ambientLight, lights);
 				RGBA newColor = color.color * lighting;
 
+				// #ifndef NDEBUG
+				// 				ivec2 reversed = canonicalize(toHomogenous(camToDrawnPoint)
+				// 				                              *
+				// camera.viewportTransform(canvasSize));
+				// assertEq(glm::to_string(reversed), glm::to_string(ivec2{x, y}),
+				// "Reversed does not match."); #endif
+
 				if (debugFrame)
-					std::println(
-					    std::cerr,
-					    "pixel ({}, {}): normal: {}, cam to point: {}, depth: {}, lighting: {}", x,
-					    y, glm::to_string(normal), glm::to_string(camToDrawnPoint), 1 / invDepth,
-					    lighting);
+					std::println(std::cerr, "normal: {}, cam to point: {}, depth: {}, lighting: {}",
+					             glm::to_string(normal), glm::to_string(camToDrawnPoint), depth,
+					             lighting);
 
 				putBufPixel(depthBuffer, {x, y}, (float)invDepth);
 				putPixel(canvas, SextantCoord(y, x), Color(color.category, newColor));
@@ -272,13 +301,13 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                     const Triangle<ivec2>& triangle, const Triangle<float>& depth,
-                    const Triangle<dvec3> normals, const Color color, const double viewportDistance,
-                    const double ambientLight, const double specular,
+                    const Triangle<dvec3> normals, const Color color, const double ambientLight,
+                    const double specular, const Camera& camera,
                     const std::vector<std::shared_ptr<Light>> lights) {
 	if (debugFrame) {
 		std::println(std::cerr, "drawing tri: p0: {}, p1: {}, p2: {}", glm::to_string(triangle[0]),
 		             glm::to_string(triangle[1]), glm::to_string(triangle[2]));
 	}
-	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color, viewportDistance,
-	                   ambientLight, specular, lights);
+	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color, ambientLight, specular,
+	                   camera, lights);
 }

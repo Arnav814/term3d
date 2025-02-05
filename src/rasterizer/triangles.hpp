@@ -13,8 +13,8 @@ std::vector<double> interpolate(const int x0, const double y0, const int x1, con
 void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color);
 void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                     const Triangle<ivec2>& triangle, const Triangle<float>& depth,
-                    const Triangle<dvec3> normals, const Color color, const double viewportDistance,
-                    const double ambientLight, const double specular,
+                    const Triangle<dvec3> normals, const Color color,
+                    const double ambientLight, const double specular, const Camera& camera,
                     const std::vector<std::shared_ptr<Light>> lights);
 
 #endif /* TRIANGLES_HPP */

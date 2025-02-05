@@ -1,5 +1,5 @@
 #include "controller.hpp"
-#include "common.hpp"
+#include "structures.hpp"
 #include "rasterizer.hpp"
 #include "renderable.hpp"
 #include <glm/gtx/euler_angles.hpp>

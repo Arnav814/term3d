@@ -1,8 +1,8 @@
 #include "rasterizer.hpp"
-#include "common.hpp"
 #include "glm/geometric.hpp"
 #include "glm/gtx/dual_quaternion.hpp"
 #include "renderable.hpp"
+#include "structures.hpp"
 #include "triangles.hpp"
 #include <boost/multi_array.hpp>
 #include <boost/range/join.hpp>
@@ -78,7 +78,6 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
     };
 
 	for (auto& point : points) {
-		point = glm::normalize(point); // FIXME: this is wrong, janky, and should be unnecesary
 		assertLt(abs(glm::length(point) - 1), 0.01, "Vector is wrong length.");
 	}
 
@@ -161,7 +160,7 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 
 	Camera camera(1, 1, 1, parseTransform(invertTransform(Transform())));
 
-	double ambientLight = 0.3;
+	double ambientLight = 0.1;
 	Scene scene{{}, {}, {}, camera, Color(Category(true, 7), RGBA(0, 0, 0, 255)), ambientLight};
 
 	Object3D cube(
@@ -217,15 +216,15 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 	// glm::yawPitchRoll<double>(0, 0, 0), 1.0
 	// }));
 
-	// scene.instances.push_back(InstanceRef3D(
-	//     std::make_shared<Object3D>(cube), {
-	//                                           {2, 1, 0},
-	// glm::yawPitchRoll<double>(0, 0, 0), 0.5
-	// }));
+	scene.instances.push_back(InstanceRef3D(
+	    std::make_shared<Object3D>(cube), {
+	                                          {2, 1, 0},
+                                              glm::yawPitchRoll<double>(0, 0, 0), 0.5
+    }));
 
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.3, dvec3(1.0, 4.0, 4.0)));
-	// scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
-	scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
+	scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
+	// scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.8, dvec3(1.0, 4.0, 4.0)));
 
 	return scene;
@@ -236,8 +235,8 @@ translateLights(const std::vector<std::shared_ptr<Light>>& lights, const dmat4 t
 	std::vector<std::shared_ptr<Light>> out;
 	out.reserve(lights.size());
 
-	for (std::shared_ptr<Light> light : lights) {
-		auto asPoint = dynamic_pointer_cast<PointLight>(light);
+	for (const std::shared_ptr<const Light> light : lights) {
+		auto asPoint = dynamic_pointer_cast<const PointLight>(light);
 		if (asPoint != NULL) {
 			dvec3 position = asPoint->getPosition();
 			dvec4 homogenous = {position.x, position.y, position.z, 1};
@@ -248,7 +247,7 @@ translateLights(const std::vector<std::shared_ptr<Light>>& lights, const dmat4 t
 				             glm::to_string(canonicalize(translation * homogenous)));
 		} else {
 			// do nothing for directional lights
-			out.push_back(light);
+			// FIXME: this isn't right
 		}
 	}
 
@@ -305,8 +304,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[1]])),
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[2]])),
 		    },
-		    triangle.normals, triangle.color, camera.viewportDistance, ambientLight,
-		    copied->getSpecular(), lights);
+		    triangle.normals, triangle.color, ambientLight, copied->getSpecular(), camera, lights);
 	}
 }
 
@@ -323,9 +321,11 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 	if (debugFrame)
 		std::println(std::cerr, "camera at {}", glm::to_string(scene.camera.invTransform));
 
+	std::vector<std::shared_ptr<Light>> translatedLights =
+	    translateLights(scene.lights, scene.camera.invTransform);
 	for (const InstanceRef3D& objectInst : scene.instances) {
 		renderInstance(canvas, depthBuffer, scene.camera, objectInst, scene.ambientLight,
-		               translateLights(scene.lights, scene.camera.invTransform));
+		               translatedLights);
 	}
 
 	if (debugFrame) {

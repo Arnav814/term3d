@@ -2,7 +2,7 @@
 #define RENDERABLE_HPP
 #include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
-#include <array>
+#include "structures.hpp"
 #include <glm/ext/matrix_double3x3.hpp>
 #include <glm/ext/matrix_double4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -14,35 +14,7 @@
 
 using glm::dvec3, glm::dmat4, glm::dvec4;
 
-template <typename T> using Triangle = std::array<T, 3>;
-
-#define NO_TRIANGLE \
-	ColoredTriangle { \
-		{std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max(), \
-		 std::numeric_limits<uint>::max()}, \
-		    Color(), {} \
-	}
-
-struct ColoredTriangle {
-	Triangle<uint> triangle; // refers to array indexes
-	Color color;
-	Triangle<dvec3> normals;
-
-	bool operator==(const ColoredTriangle& other) const = default;
-	bool operator!=(const ColoredTriangle& other) const = default;
-};
-
-struct Sphere {
-	dvec3 center;
-	double radius;
-};
-
 Sphere createBoundingSphere(const std::vector<dvec3>& points);
-
-struct Plane {
-	dvec3 normal;
-	double distance; // distance from origin
-};
 
 double signedDistance(const Plane& plane, const dvec3& vertex);
 
@@ -93,6 +65,14 @@ inline glm::dvec2 canonicalize(const dvec3& homogenous) {
 	    homogenous.x / homogenous.z,
 	    homogenous.y / homogenous.z,
 	};
+}
+
+inline dvec4 toHomogenous(const dvec3& point, const uint w = 1) {
+	return {point.x, point.y, point.z, w};
+}
+
+inline dvec3 toHomogenous(const glm::dvec2& point, const uint w = 1) {
+	return {point.x, point.y, w};
 }
 
 class Object3D {
@@ -289,6 +269,16 @@ class PointLight : public Light {
 	virtual LightType getType() const { return LightType::Point; }
 
 	virtual ~PointLight() = default;
+};
+
+struct Scene {
+	std::vector<std::shared_ptr<Object3D>>
+	    objects; // TODO: do I need this if it's all pointed to by instances?
+	std::vector<InstanceRef3D> instances;
+	std::vector<std::shared_ptr<Light>> lights;
+	Camera camera;
+	Color bgColor;
+	double ambientLight;
 };
 
 #endif /* RENDERABLE_HPP */
