@@ -2,6 +2,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
+#include "interpolate.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
 #include <memory>
@@ -23,50 +24,6 @@ inline T getBufPixel(const boost::multi_array<T, 2>& buffer, const ivec2 coord, 
 	    and transformed.x < (int)buffer.shape()[1])
 		return buffer[transformed.y][transformed.x];
 	return fallback;
-}
-
-std::vector<double> interpolate(const int x0, const double y0, const int x1, const double y1) {
-	// TODO: do these really need to be doubles?
-	if (x0 == x1) // for only one point
-		return {y0};
-
-	assertGt(x1, x0, "Can't interpolate backwards");
-
-	std::vector<double> out;
-	out.reserve(x1 - x0 + 1);
-
-	double slope = (double)(y1 - y0) / (x1 - x0);
-	double y = y0;
-	for (int x = x0; x <= x1; x++) {
-		out.push_back(y);
-		y += slope;
-	}
-
-	return out; // FIXME: Passing a vector like this is horrendously inefficient. Use an iterator.
-}
-
-// interpolate a member of Elem
-template <typename Elem, typename Field, typename LambdaType>
-void interpolateField(std::vector<Elem>& baseVector, LambdaType getElemRef, const int x0,
-                      const double y0, const int x1, const double y1) {
-	// TODO: do these really need to be doubles?
-
-	assertEq(baseVector.size(), static_cast<uint>(x1 - x0 + 1),
-	         "baseVector must be set to the correct size beforehand.");
-
-	if (x0 == x1) { // for only one point
-		getElemRef(baseVector[0]) = y0;
-		return;
-	}
-
-	assertGt(x1, x0, "Can't interpolate backwards");
-
-	double slope = (double)(y1 - y0) / (x1 - x0);
-	double y = y0;
-	for (int x = 0; x <= x1 - x0; x++) {
-		getElemRef(baseVector[x]) = y;
-		y += slope;
-	}
 }
 
 static dvec3 reflectRay(const dvec3 ray, const dvec3 around) {

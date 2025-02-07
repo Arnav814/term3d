@@ -13,6 +13,22 @@ extern bool debugFrame;
 
 template <typename T> using Triangle = std::array<T, 3>;
 
+template <typename T>
+struct std::formatter<Triangle<T>> : std::formatter<std::string> {
+	using std::formatter<std::string>::parse;
+
+	auto format(glm::dvec3 const& val, auto& ctx) const {
+		auto out = ctx.out();
+		out = std::format_to(out, "[");
+		out = std::format_to(out, val[0]);
+		out = std::format_to(out, val[1]);
+		out = std::format_to(out, val[2]);
+		out = std::format_to(out, "]");
+		ctx.advance_to(out);
+		return out;
+	};
+};
+
 #define NO_TRIANGLE \
 	ColoredTriangle { \
 		{std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max(), \
