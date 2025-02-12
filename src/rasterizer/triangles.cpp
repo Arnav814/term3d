@@ -1,8 +1,8 @@
 #include "triangles.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "interpolate.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
-#include "interpolate.hpp"
 #include <boost/multi_array.hpp>
 #include <limits>
 #include <memory>
@@ -136,15 +136,11 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
 
-	// interpolate a member of a struct with macro hax
+	// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
 	do { \
-		auto getField = \
-		    [](decltype(vec)::value_type& elem) -> decltype(decltype(vec)::value_type::field)& { \
-			return elem.field; \
-		}; \
-		interpolateField<decltype(vec)::value_type, decltype(decltype(vec)::value_type::field), \
-		                 decltype(getField)>((vec), getField, (x0), (y0), (x1), (y1)); \
+		interpolateField<decltype(vec)::value_type>((vec), &decltype(vec)::value_type::field, \
+		                                            (x0), (y0), (x1), (y1)); \
 	} while (false)
 
 	std::vector<InterpElems> shortSide1{

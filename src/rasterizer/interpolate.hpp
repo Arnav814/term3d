@@ -33,16 +33,16 @@ inline double interpolateValue(const int x0, const double y0, const int x1, cons
 }
 
 // interpolate a member of Elem
-template <typename Elem, typename Field, typename LambdaType>
-inline void interpolateField(std::vector<Elem>& baseVector, LambdaType getElemRef, const int x0,
-                             const double y0, const int x1, const double y1) {
+template <typename Elem>
+inline void interpolateField(std::vector<Elem>& baseVector, const double Elem::*member,
+                             const int x0, const double y0, const int x1, const double y1) {
 	// TODO: do these really need to be doubles?
 
 	assertEq(baseVector.size(), static_cast<uint>(x1 - x0 + 1),
 	         "baseVector must be set to the correct size beforehand.");
 
 	if (x0 == x1) { // for only one point
-		getElemRef(baseVector[0]) = y0;
+		baseVector[0].*member = y0;
 		return;
 	}
 
@@ -51,7 +51,7 @@ inline void interpolateField(std::vector<Elem>& baseVector, LambdaType getElemRe
 	double slope = (double)(y1 - y0) / (x1 - x0);
 	double y = y0;
 	for (int x = 0; x <= x1 - x0; x++) {
-		getElemRef(baseVector[x]) = y;
+		baseVector[x].*member = y;
 		y += slope;
 	}
 }
