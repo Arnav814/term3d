@@ -2,7 +2,9 @@
 #define RENDERABLE_HPP
 #include "../drawing/setColor.hpp"
 #include "../extraAssertions.hpp"
+#include "../util/formatters.hpp"
 #include "structures.hpp"
+
 #include <glm/ext/matrix_double3x3.hpp>
 #include <glm/ext/matrix_double4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -227,6 +229,10 @@ std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst
 enum class LightType { Point, Directional };
 
 class Light {
+  protected:
+  	friend class std::formatter<Light>;
+	virtual std::string stringify() const = 0;
+
   public:
 	virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const = 0;
 	virtual double getIntensity() const = 0;
@@ -235,8 +241,13 @@ class Light {
 };
 
 class DirectionalLight : public Light {
+  private:
 	double intensity;
 	dvec3 direction;
+
+	std::string stringify() const {
+		return std::format("DirectionalLight(direction:{}, intensity:{})", direction, intensity);
+	}
 
   public:
 	DirectionalLight(double intensity, dvec3 direction)
@@ -254,8 +265,13 @@ class DirectionalLight : public Light {
 };
 
 class PointLight : public Light {
+  private:
 	double intensity;
 	dvec3 position;
+
+	std::string stringify() const {
+		return std::format("PointLight(position:{}, intensity:{})", position, intensity);
+	}
 
   public:
 	PointLight(double intensity, dvec3 position) : intensity(intensity), position(position) {}
@@ -269,6 +285,17 @@ class PointLight : public Light {
 	virtual LightType getType() const { return LightType::Point; }
 
 	virtual ~PointLight() = default;
+};
+
+template<> struct std::formatter<Light> : std::formatter<std::string> {
+	using std::formatter<std::string>::parse;
+
+	auto format(Light const& val, auto& ctx) const {
+		auto out = ctx.out();
+		out = std::format_to(out, val.stringify());
+		ctx.advance_to(out);
+		return out;
+	};
 };
 
 struct Scene {
