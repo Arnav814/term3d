@@ -4,6 +4,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(play3d)
 
+# libstdc++ doesn't work, but libc++ does for some reason (unimplemented features?)
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
 include(FetchContent)
 
 # I don't want to deal with this
