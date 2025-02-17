@@ -4,7 +4,6 @@
 #include "../extraAssertions.hpp"
 #include "../util/formatters.hpp"
 #include "structures.hpp"
-
 #include <glm/ext/matrix_double3x3.hpp>
 #include <glm/ext/matrix_double4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -25,34 +24,6 @@ inline dvec3 intersectPlaneSeg(const std::pair<dvec3, dvec3>& segment, const Pla
 	           / glm::dot(plane.normal, segment.second - segment.first);
 	return segment.first + t * (segment.second - segment.first);
 }
-
-struct Transform {
-	dvec3 translation;
-	glm::dmat3 rotation;
-	dvec3 scale; // x, y, and z scale
-
-	Transform(const dvec3 translation, const glm::dmat3 rotation, const dvec3 scale)
-	    : translation(translation), rotation(rotation), scale(scale) {}
-
-	Transform(const dvec3 translation, const glm::dmat3 rotation, const double scale)
-	    : translation(translation), rotation(rotation), scale(scale, scale, scale) {}
-
-	Transform() : Transform({0, 0, 0}, glm::dmat3(1 /* identity matrix */), 1.0) {}
-};
-
-template <> struct std::formatter<Transform> : std::formatter<string> {
-	auto format(const Transform& transform, std::format_context& context) const {
-		return formatter<string>::format(
-		    std::format("transform: (translation: {}, rotation: {}, scale: {})",
-		                glm::to_string(transform.translation), glm::to_string(transform.rotation),
-		                glm::to_string(transform.scale)),
-		    context);
-	}
-};
-
-dmat4 parseTransform(const Transform& transform);
-
-Transform invertTransform(const Transform& transform);
 
 inline dvec3 canonicalize(const dvec4& homogenous) {
 	return {

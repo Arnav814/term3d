@@ -1,6 +1,5 @@
 #include "rasterizer.hpp"
 #include "glm/geometric.hpp"
-#include "glm/gtx/dual_quaternion.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
 #include "triangles.hpp"
@@ -13,7 +12,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/trigonometric.hpp>
 #include <memory>
-#include <ostream>
 #include <vector>
 
 #define cwhite Color(Category(true, 8), RGBA(255, 255, 255, 255))
@@ -158,7 +156,7 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 	//               parseTransform(invertTransform(Transform(
 	//                   {-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0))));
 
-	Camera camera(1, 1, 1, parseTransform(invertTransform(Transform())));
+	Camera camera(1, 1, 1);
 
 	double ambientLight = 0.1;
 	Scene scene{{}, {}, {}, camera, Color(Category(true, 7), RGBA(0, 0, 0, 255)), ambientLight};
@@ -263,7 +261,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 
 	for (dvec3& vertex : copied->getPoints()) {
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
-		homogenous = (camera.invTransform * objectInst.getObjTransform()) * homogenous;
+		homogenous = (camera.getInvTransform() * objectInst.getObjTransform()) * homogenous;
 		vertex = canonicalize(homogenous);
 	}
 
@@ -321,10 +319,10 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 	}
 
 	if (debugFrame)
-		std::println(std::cerr, "camera at {}", glm::to_string(scene.camera.invTransform));
+		std::println(std::cerr, "camera at {}", glm::to_string(scene.camera.getInvTransform()));
 
 	std::vector<std::shared_ptr<Light>> translatedLights =
-	    translateLights(scene.lights, scene.camera.invTransform);
+	    translateLights(scene.lights, scene.camera.getInvTransform());
 	for (const InstanceRef3D& objectInst : scene.instances) {
 		renderInstance(canvas, depthBuffer, scene.camera, objectInst, scene.ambientLight,
 		               translatedLights);

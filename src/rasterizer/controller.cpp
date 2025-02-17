@@ -1,7 +1,7 @@
 #include "controller.hpp"
-#include "structures.hpp"
 #include "rasterizer.hpp"
 #include "renderable.hpp"
+#include "structures.hpp"
 #include <glm/gtx/euler_angles.hpp>
 #include <limits>
 #include <stdexcept>
@@ -30,55 +30,58 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 			case NCKEY_SIGNAL: break; // TODO: pause here
 			case 'w':
 				transform = {
-				    {0, 0, -1},
+				    {0, 0, 1},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 's':
 				transform = {
-				    {0, 0, 1},
+				    {0, 0, -1},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 'q':
 				transform = {
-				    {1, 0, 0},
+				    {-1, 0, 0},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 'e':
 				transform = {
-				    {-1, 0, 0},
+				    {1, 0, 0},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 'r':
 				transform = {
-				    {0, -1, 0},
+				    {0, 1, 0},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 'f':
 				transform = {
-				    {0, 1, 0},
+				    {0, -1, 0},
                     glm::yawPitchRoll<double>(0, 0, 0), 1
                 };
 				break;
 			case 'a':
 				transform = {
 				    {0, 0, 0},
-                    glm::yawPitchRoll<double>(-0.1, 0, 0), 1
+                    glm::yawPitchRoll<double>(0.1, 0, 0), 1
                 };
 				break;
 			case 'd':
 				transform = {
 				    {0, 0, 0},
-                    glm::yawPitchRoll<double>(0.1, 0, 0), 1
+                    glm::yawPitchRoll<double>(-0.1, 0, 0), 1
                 };
 				break;
 			case 'x': debugFrame = true; break;
 			}
-			scene.camera.invTransform = parseTransform(transform) * scene.camera.invTransform;
+			scene.camera.setTransform(scene.camera.getTransform() + transform);
+			if (debugFrame)
+				std::println(std::cerr, "moved:{}, camera:{}", transform,
+				             scene.camera.getTransform());
 		} while (inputCode != 0 && key.id != NCKEY_EOF /* TODO: what is this EOF thing */);
 
 		static bool frameIndicator = true;
