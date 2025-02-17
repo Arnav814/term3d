@@ -78,6 +78,7 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 				break;
 			case 'x': debugFrame = true; break;
 			}
+			// FIXME: moving feels off
 			scene.camera.setTransform(scene.camera.getTransform() + transform);
 			if (debugFrame)
 				std::println(std::cerr, "moved:{}, camera:{}", transform,
