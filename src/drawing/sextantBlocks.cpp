@@ -96,22 +96,6 @@ std::unordered_map<char, wchar_t> sextantMap{
     {0b111111, L'█'}
 };
 
-void testAllSextants() {
-	std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_conv;
-	for (const auto& i : sextantMap) {
-		std::bitset<6> asBitset(i.first);
-		std::cout << (asBitset[5] ? '#' : '_');
-		std::cout << (asBitset[2] ? '#' : '_') << '\n';
-		std::cout << (asBitset[4] ? '#' : '_');
-		std::cout << (asBitset[1] ? '#' : '_') << '\n';
-		std::cout << (asBitset[3] ? '#' : '_');
-		std::cout << (asBitset[0] ? '#' : '_') << '\n';
-		std::cout << "\e[43m" << utf8_conv.to_bytes(i.second) << "\e[0m";
-		std::cout << "\n\n";
-	}
-	std::cout << std::flush;
-}
-
 SextantDrawing::SextantDrawing(const int height, const int width) {
 	assertGtEq(height, 0, "height must be positive");
 	assertGtEq(width, 0, "width must be positive");
