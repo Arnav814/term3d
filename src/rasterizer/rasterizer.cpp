@@ -295,6 +295,8 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 	}
 
 	for (const ColoredTriangle& triangle : copied->getTriangles()) {
+		if (debugFrame) // print 3d points, renderTriangle prints 2d points
+			std::println(std::cerr, "Drawing tri {}.", copied->getDvecTri(triangle.triangle));
 		renderTriangle(
 		    canvas, depthBuffer,
 		    {projected[triangle.triangle[0]], projected[triangle.triangle[1]],

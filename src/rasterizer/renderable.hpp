@@ -191,6 +191,11 @@ class InstanceSC3D {
 
 	std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
 
+	// don't use this very much; it's inefficient
+	Triangle<dvec3> getDvecTri(Triangle<uint> tri) {
+		return {this->points[tri[0]], this->points[tri[1]], this->points[tri[2]]};
+	};
+
 	void clearEmptyTris() { std::erase(this->triangles, NO_TRIANGLE); }
 
 	Sphere getBoundingSphere() const {
@@ -230,7 +235,7 @@ enum class LightType { Point, Directional };
 
 class Light {
   protected:
-  	friend class std::formatter<Light>;
+	friend class std::formatter<Light>;
 	virtual std::string stringify() const = 0;
 
   public:
@@ -287,7 +292,7 @@ class PointLight : public Light {
 	virtual ~PointLight() = default;
 };
 
-template<> struct std::formatter<Light> : std::formatter<std::string> {
+template <> struct std::formatter<Light> : std::formatter<std::string> {
 	using std::formatter<std::string>::parse;
 
 	auto format(Light const& val, auto& ctx) const {

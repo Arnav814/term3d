@@ -34,7 +34,7 @@ inline double interpolateValue(const int x0, const double y0, const int x1, cons
 
 // interpolate a member of Elem
 template <typename Elem>
-inline void interpolateField(std::vector<Elem>& baseVector, const double Elem::*member,
+inline void interpolateField(std::vector<Elem>& baseVector, double Elem::*member,
                              const int x0, const double y0, const int x1, const double y1) {
 	// TODO: do these really need to be doubles?
 
