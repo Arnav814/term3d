@@ -3,7 +3,7 @@
 #include <cassert>
 #include <execinfo.h>
 #include <iostream>
-#include <limits>
+#include <exception>
 
 // this file serves as a place for everything that needs to be included everywhere
 
