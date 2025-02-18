@@ -9,7 +9,7 @@ inline std::vector<double> interpolate(const int x0, const double y0, const int 
 	if (x0 == x1) // for only one point
 		return {y0};
 
-	assertGt(x1, x0, "Can't interpolate backwards");
+	assertGt(x1, x0, "Can't interpolate backwards.");
 
 	std::vector<double> out;
 	out.reserve(x1 - x0 + 1);
@@ -32,10 +32,18 @@ inline double interpolateValue(const int x0, const double y0, const int x1, cons
 	return y0 + (x - x1) * slope;
 }
 
+// find the interpolated value at t; use for one-offs where you don't need the whole std::vector
+// instead of using x, this function uses t. t describes where the value is, and varies from 0 to 1
+// across the interpolated segment
+inline double interpolateValue(const double y0, const double y1, const double t) {
+	assertBetweenIncl(0, t, 1, "t must be between 0 and 1.");
+	return y0 + t * (y1 - y0);
+}
+
 // interpolate a member of Elem
 template <typename Elem>
-inline void interpolateField(std::vector<Elem>& baseVector, double Elem::*member,
-                             const int x0, const double y0, const int x1, const double y1) {
+inline void interpolateField(std::vector<Elem>& baseVector, double Elem::* member, const int x0,
+                             const double y0, const int x1, const double y1) {
 	// TODO: do these really need to be doubles?
 
 	assertEq(baseVector.size(), static_cast<uint>(x1 - x0 + 1),

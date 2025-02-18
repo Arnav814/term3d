@@ -25,6 +25,20 @@ inline dvec3 intersectPlaneSeg(const std::pair<dvec3, dvec3>& segment, const Pla
 	return segment.first + t * (segment.second - segment.first);
 }
 
+struct IntersectPlaneSegTRetVal {
+	double t;
+	dvec3 intersection;
+};
+
+// also return the t value
+// t describes how far across this intersection is, from 0 to 1
+inline IntersectPlaneSegTRetVal intersectPlaneSegT(const std::pair<dvec3, dvec3>& segment,
+                                                   const Plane& plane) {
+	double t = (-plane.distance - glm::dot(plane.normal, segment.first))
+	           / glm::dot(plane.normal, segment.second - segment.first);
+	return {t, segment.first + t * (segment.second - segment.first)};
+}
+
 inline dvec3 canonicalize(const dvec4& homogenous) {
 	return {
 	    homogenous.x / homogenous.w,

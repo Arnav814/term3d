@@ -58,7 +58,7 @@ int whichOf(const Triangle<T>& tri, const lambdaType& selector) {
 void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) {
 	ColoredTriangle target = inst.getTriangles()[targetIdx];
 	Triangle<uint>& targetTri = target.triangle;
-	// Triangle<dvec3>& normals = target.normals;
+	Triangle<dvec3>& normals = target.normals;
 	if (targetTri == NO_TRIANGLE.triangle) return;
 	Color color = inst.getTriangles()[targetIdx].color;
 
@@ -73,45 +73,63 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 
 	} else if (numPositive == 1) { // 1 vertex inside
 		// make targetTri[0] be the only positive vertex
-		targetTri =
-		    reorderTri(targetTri, whichOf(distances, [](const double& num) { return num >= 0; }));
+		int positiveIdx = whichOf(distances, [](const double& num) { return num >= 0; });
+		targetTri = reorderTri(targetTri, positiveIdx);
+		normals = reorderTri(normals, positiveIdx);
 
-		dvec3 vertexA = intersectPlaneSeg(
+		auto vertexA = intersectPlaneSegT(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
-		dvec3 vertexB = intersectPlaneSeg(
+		auto vertexB = intersectPlaneSegT(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[2]]), plane);
 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({
-		    {targetTri[0], inst.addVertex(vertexA), inst.addVertex(vertexB)},
-		    color  // TODO: normals
-		});
+		    {targetTri[0], inst.addVertex(vertexA.intersection),
+		     inst.addVertex(vertexB.intersection)                     },
+		    color,
+		    {normals[0],
+		     {interpolateValue(normals[0].x, normals[1].x, vertexA.t),
+		      interpolateValue(normals[0].y, normals[1].y, vertexA.t),
+		      interpolateValue(normals[0].z, normals[1].z, vertexA.t)},
+		     {interpolateValue(normals[0].x, normals[2].x, vertexA.t),
+		      interpolateValue(normals[0].y, normals[2].y, vertexA.t),
+		      interpolateValue(normals[0].z, normals[2].z, vertexA.t)}}
+        });
 
 	} else if (numPositive == 2) { // 2 verticies inside
 		// make targetTri[0] be the only negative vertex
-		targetTri =
-		    reorderTri(targetTri, whichOf(distances, [](const double& num) { return num < 0; }));
+		int negativeIdx = whichOf(distances, [](const double& num) { return num < 0; });
+		targetTri = reorderTri(targetTri, negativeIdx);
+		normals = reorderTri(normals, negativeIdx);
 
-		dvec3 p1Prime = intersectPlaneSeg(
+		auto p1Prime = intersectPlaneSegT(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
-		dvec3 p2Prime = intersectPlaneSeg(
+		auto p2Prime = intersectPlaneSegT(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[2]]), plane);
 
-		uint p1Idx = inst.addVertex(p1Prime);
-		uint p2Idx = inst.addVertex(p2Prime);
+		uint p1Idx = inst.addVertex(p1Prime.intersection);
+		uint p2Idx = inst.addVertex(p2Prime.intersection);
 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
+		dvec3 p1Normals{interpolateValue(normals[0].x, normals[1].x, p1Prime.t),
+		                interpolateValue(normals[0].y, normals[1].y, p1Prime.t),
+		                interpolateValue(normals[0].z, normals[1].z, p1Prime.t)};
+
+		dvec3 p2Normals{interpolateValue(normals[0].x, normals[2].x, p1Prime.t),
+		                interpolateValue(normals[0].y, normals[2].y, p1Prime.t),
+		                interpolateValue(normals[0].z, normals[2].z, p1Prime.t)};
+
 		inst.addTriangle({
-		    {p1Idx, targetTri[1], targetTri[2]},
-		    color  // TODO: normals
-		});
+		    {p1Idx,     targetTri[1], targetTri[2]},
+            color, {p1Normals, normals[1],   normals[2]  }
+        });
 		inst.addTriangle({
-		    {targetTri[2], p2Idx, p1Idx},
-		    color  // TODO: normals
-		});
+		    {targetTri[2], p2Idx,     p1Idx    },
+            color, {normals[2],   p2Normals, p1Normals}
+        });
 
 	} else if (numPositive == 0) { // all outside
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
