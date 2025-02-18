@@ -261,6 +261,17 @@ void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthB
 		std::println(std::cerr, "drawing tri: p0: {}, p1: {}, p2: {}", glm::to_string(triangle[0]),
 		             glm::to_string(triangle[1]), glm::to_string(triangle[2]));
 	}
-	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color, ambientLight, specular,
-	                   camera, lights);
+
+	// randomize colors so tris can be distinguished
+	Color color2 = color;
+	if (debugFrame) {
+		color2 = Color{
+		    color.category,
+		    {static_cast<uchar>(rand() % 255), static_cast<uchar>(rand() % 255),
+		               static_cast<uchar>(rand() % 255), 255}
+        };
+	}
+
+	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color2, ambientLight,
+	                   specular, camera, lights);
 }

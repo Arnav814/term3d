@@ -1,5 +1,6 @@
 #include "renderable.hpp"
 #include "interpolate.hpp"
+#include <ranges>
 
 Sphere createBoundingSphere(const std::vector<dvec3>& points) {
 	Sphere output;
@@ -26,6 +27,34 @@ double signedDistance(const Plane& plane, const dvec3& vertex) {
 	       + plane.distance;
 }
 
+// reorganize the triangle so index is the first value
+// preserves order, so back face culling still works
+template <typename T> Triangle<T> reorderTri(Triangle<T>& tri, const int index) {
+	Triangle<T> out;
+
+	int from = index; // the index to copy from
+	int to = 0; // the index to copy to
+
+	while (to != 3) {
+		out[to] = tri[from];
+
+		to++;
+		from++;
+		if (from > 2) from = 0; // wrap around
+	}
+
+	return out;
+}
+
+// finds the first vertex that makes selector true
+template <typename T, typename lambdaType>
+int whichOf(const Triangle<T>& tri, const lambdaType& selector) {
+	for (uint i = 0; i < tri.size(); i++) {
+		if (selector(tri[i])) return i;
+	}
+	return -1;
+}
+
 void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) {
 	ColoredTriangle target = inst.getTriangles()[targetIdx];
 	Triangle<uint>& targetTri = target.triangle;
@@ -43,10 +72,9 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		return;
 
 	} else if (numPositive == 1) { // 1 vertex inside
-		if (distances[0] >= 0)
-			; // make p0 be the only positive vertex
-		else if (distances[1] >= 0) std::swap(targetTri[0], targetTri[1]);
-		else if (distances[2] >= 0) std::swap(targetTri[0], targetTri[2]);
+		// make targetTri[0] be the only positive vertex
+		targetTri =
+		    reorderTri(targetTri, whichOf(distances, [](const double& num) { return num >= 0; }));
 
 		dvec3 vertexA = intersectPlaneSeg(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
@@ -57,15 +85,19 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({
+		    // {inst.addVertex(vertexB), targetTri[0], inst.addVertex(vertexA)},
+		    // {inst.addVertex(vertexA), targetTri[0], inst.addVertex(vertexB)},
 		    {targetTri[0], inst.addVertex(vertexA), inst.addVertex(vertexB)},
-            color // TODO: normals
-        });
+		    // {targetTri[0], inst.addVertex(vertexB), inst.addVertex(vertexA)},
+		    // {inst.addVertex(vertexB), inst.addVertex(vertexA), targetTri[0]},
+		    // {inst.addVertex(vertexA), inst.addVertex(vertexB), targetTri[0]},
+		    color  // TODO: normals
+		});
 
 	} else if (numPositive == 2) { // 2 verticies inside
-		if (distances[0] < 0)
-			; // make p0 be the only negative vertex
-		else if (distances[1] < 0) std::swap(targetTri[0], targetTri[1]);
-		else if (distances[2] < 0) std::swap(targetTri[0], targetTri[2]);
+		// make targetTri[0] be the only negative vertex
+		targetTri =
+		    reorderTri(targetTri, whichOf(distances, [](const double& num) { return num < 0; }));
 
 		dvec3 p1Prime = intersectPlaneSeg(
 		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
@@ -78,13 +110,23 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		inst.addTriangle({
-		    {targetTri[1], p1Idx, targetTri[2]},
-            color // TODO: normals
-        });
+		    // {targetTri[1], p1Idx, targetTri[2]},
+		    // {targetTri[2], p1Idx, targetTri[1]},
+		    {p1Idx, targetTri[1], targetTri[2]},
+		    // {p1Idx, targetTri[2], targetTri[1]},
+		    // {targetTri[1], targetTri[2], p1Idx},
+		    // {targetTri[2], targetTri[1], p1Idx},
+		    color  // TODO: normals
+		});
 		inst.addTriangle({
+		    // {targetTri[2], p2Idx, p1Idx},
 		    {targetTri[2], p2Idx, p1Idx},
-            color // TODO: normals
-        });
+		    // {p2Idx, targetTri[2], p1Idx},
+		    // {p1Idx, targetTri[2], p2Idx},
+		    // {p1Idx, p2Idx, targetTri[2]},
+		    // {p2Idx, p1Idx, targetTri[2]},
+		    color  // TODO: normals
+		});
 
 	} else if (numPositive == 0) { // all outside
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
@@ -111,6 +153,14 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 
 			for (uint i = 0; i < numTriangles; i++) {
 				clipTriangle(*inst, plane, i);
+				if (debugFrame)
+					std::println(
+					    std::cerr, "tris after clipping: {}",
+					    inst->getTriangles() | std::ranges::views::filter([](ColoredTriangle& tri) {
+						    return not(tri == NO_TRIANGLE);
+					    }) | std::ranges::views::transform([&inst](ColoredTriangle& tri) {
+						    return inst->getDvecTri(tri.triangle);
+					    }));
 			}
 		}
 	}
