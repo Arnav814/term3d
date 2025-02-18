@@ -85,12 +85,7 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({
-		    // {inst.addVertex(vertexB), targetTri[0], inst.addVertex(vertexA)},
-		    // {inst.addVertex(vertexA), targetTri[0], inst.addVertex(vertexB)},
 		    {targetTri[0], inst.addVertex(vertexA), inst.addVertex(vertexB)},
-		    // {targetTri[0], inst.addVertex(vertexB), inst.addVertex(vertexA)},
-		    // {inst.addVertex(vertexB), inst.addVertex(vertexA), targetTri[0]},
-		    // {inst.addVertex(vertexA), inst.addVertex(vertexB), targetTri[0]},
 		    color  // TODO: normals
 		});
 
@@ -110,21 +105,11 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
 
 		inst.addTriangle({
-		    // {targetTri[1], p1Idx, targetTri[2]},
-		    // {targetTri[2], p1Idx, targetTri[1]},
 		    {p1Idx, targetTri[1], targetTri[2]},
-		    // {p1Idx, targetTri[2], targetTri[1]},
-		    // {targetTri[1], targetTri[2], p1Idx},
-		    // {targetTri[2], targetTri[1], p1Idx},
 		    color  // TODO: normals
 		});
 		inst.addTriangle({
-		    // {targetTri[2], p2Idx, p1Idx},
 		    {targetTri[2], p2Idx, p1Idx},
-		    // {p2Idx, targetTri[2], p1Idx},
-		    // {p1Idx, targetTri[2], p2Idx},
-		    // {p1Idx, p2Idx, targetTri[2]},
-		    // {p2Idx, p1Idx, targetTri[2]},
 		    color  // TODO: normals
 		});
 
