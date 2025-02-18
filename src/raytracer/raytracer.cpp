@@ -56,6 +56,8 @@ class DirectionalLight : public Light {
 	virtual double getIntensity() const { return this->intensity; }
 
 	virtual LightType getType() const { return LightType::Directional; }
+	
+	virtual ~DirectionalLight() = default;
 };
 
 class PointLight : public Light {
@@ -70,6 +72,8 @@ class PointLight : public Light {
 	virtual double getIntensity() const { return this->intensity; }
 
 	virtual LightType getType() const { return LightType::Point; }
+
+	virtual ~PointLight() = default;
 };
 
 struct Scene {
