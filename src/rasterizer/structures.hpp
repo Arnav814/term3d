@@ -105,7 +105,6 @@ struct Camera {
 
 	std::vector<Plane> getClippingPlanes() const { // TODO: allow changing FOV
 		return {
-			{{-1, 0, 0}, 0},
 		    {{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)},  0},
 		    {{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
 		    {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)},  0},

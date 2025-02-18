@@ -91,15 +91,6 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		squareDrawing.clear();
 		finalDrawing.clear();
 		renderScene(squareDrawing, scene);
-
-		for (int i = squareDrawing.getHeight() - 1; i > 0; i--) {
-			squareDrawing.set(
-			    {
-			        i, squareDrawing.getWidth() / 2
-            },
-			    Color{{false, 1}, {255, 255, 255, 255}});
-		}
-
 		finalDrawing.insert({0, 0}, squareDrawing);
 
 		if (frameIndicator)
