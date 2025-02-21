@@ -12,6 +12,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/trigonometric.hpp>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 #define cwhite Color(Category(true, 8), RGBA(255, 255, 255, 255))
@@ -152,10 +153,6 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 };
 
 [[nodiscard]] Scene initScene() {
-	// Camera camera(1, 1, 1,
-	//               parseTransform(invertTransform(Transform(
-	//                   {-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0))));
-
 	Camera camera(1, 1, 1);
 
 	double ambientLight = 0.1;

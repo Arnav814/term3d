@@ -1,4 +1,5 @@
 #include "triangles.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "interpolate.hpp"
 #include "renderable.hpp"
@@ -38,7 +39,10 @@ static double computeLighting(const dvec3 point, const dvec3 normal, const doubl
 	for (const std::shared_ptr<const Light> light : lights) {
 		dvec3 lightDir = light->getDirection(point);
 
-		if (debugFrame) std::print(std::cerr, "[light from vec {}:", glm::to_string(lightDir));
+		if (debugFrame) {
+			std::print(std::cerr, "[light from vec {:.2f}:", lightDir);
+			std::print(std::cerr, "normal:{}, ", normal);
+		}
 
 		// diffuse
 		double normalDotLight = glm::dot(normal, lightDir);
@@ -118,6 +122,7 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
                         const Color color, const double ambientLight, const double specular,
                         const Camera& camera, const std::vector<std::shared_ptr<Light>>& lights) {
 	// sort top to bottom, so p0.y < p1.y < p2.y
+	// we don't care about ordering clockwise anymore, so this is fine
 	if (points[1].y < points[0].y) {
 		std::swap(depth[1], depth[0]);
 		std::swap(points[1], points[0]);
@@ -135,6 +140,20 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	}
 
 	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
+
+	// visualize point lights
+	if (debugFrame)
+		for (std::shared_ptr<Light> lightPtr : lights) {
+			std::shared_ptr<PointLight> asPointLight = dynamic_pointer_cast<PointLight>(lightPtr);
+			if (asPointLight == NULL) break;
+			ivec2 projected = canonicalize(toHomogenous(asPointLight->getPosition())
+			                               * camera.viewportTransform(canvasSize));
+			putPixel(canvas, SextantCoord(projected.y, projected.x),
+			         Color{
+			             {false, 1},
+                         {255, 255, 255, 255}
+            });
+		}
 
 	// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
@@ -227,7 +246,9 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 				camToDrawnPoint.z =
 				    sqrt(pow(depth, 2) - pow(camToDrawnPoint.x, 2) - pow(camToDrawnPoint.y, 2));
 
-				dvec3 normal = {pixel.normalX, pixel.normalY, pixel.normalZ};
+				dvec3 normal =
+				    glm::normalize(dvec3{pixel.normalX, pixel.normalY,
+				                         pixel.normalZ}); // TODO: is this normalize needed?
 				double lighting =
 				    computeLighting(camToDrawnPoint, normal, specular, ambientLight, lights);
 				RGBA newColor = color.color * lighting;
