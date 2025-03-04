@@ -153,8 +153,12 @@ void SextantDrawing::trySet(const SextantCoord& coord, const Color setTo) {
 }
 
 void SextantDrawing::clear() {
+	this->clear(Color());
+}
+
+void SextantDrawing::clear(const Color& color) {
 	for (SextantCoord coord : this->getIterator()) {
-		this->set(coord, Color());
+		this->set(coord, color);
 	}
 }
 

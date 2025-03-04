@@ -30,3 +30,15 @@ Transform invertTransform(const Transform& transform) {
 	    {1.0 / transform.scale.x, 1.0 / transform.scale.y, 1.0 / transform.scale.z}
     };
 }
+
+std::vector<Plane> Camera::getClippingPlanes() const { // TODO: allow changing FOV
+	return {
+	    // four planes that define the "cone" of clipping
+	    {{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)},  0},
+	    {{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
+	    {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)},  0},
+	    {{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+	    // for the viewport
+	    {{0, 0, 1},	                                      1} // negate till it works
+    };
+}

@@ -183,6 +183,10 @@ class InstanceSC3D {
 
 	void clearEmptyTris() { std::erase(this->triangles, NO_TRIANGLE); }
 
+	// remove any points not referenced by a triangle
+	// sets them to NO_POINT
+	void clearUnusedPoints();
+
 	Sphere getBoundingSphere() const {
 		if (not this->cachedSphere.has_value())
 			this->cachedSphere = createBoundingSphere(this->points);

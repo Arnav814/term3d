@@ -21,6 +21,13 @@ template <typename T> using Triangle = std::array<T, 3>;
 		    Color(), {} \
 	}
 
+// I would use NaN instead of infinity, but the equality nonsense is annoying
+#define NO_POINT \
+	dvec3 { \
+		std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(), \
+		    std::numeric_limits<double>::infinity() \
+	}
+
 struct ColoredTriangle {
 	Triangle<uint> triangle; // refers to array indexes
 	Color color;
@@ -94,6 +101,8 @@ struct Camera {
 		return matrix;
 	}
 
+	// Sets the camera's position.
+	// Do not invert -- this will do that by itself.
 	void setTransform(const Transform& transform) {
 		this->transform = transform;
 		this->invTransform = parseTransform(invertTransform(this->transform));
@@ -103,14 +112,7 @@ struct Camera {
 
 	const dmat4& getInvTransform() const { return this->invTransform; }
 
-	std::vector<Plane> getClippingPlanes() const { // TODO: allow changing FOV
-		return {
-		    {{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)},  0},
-		    {{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
-		    {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)},  0},
-		    {{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
-		};
-	}
+	std::vector<Plane> getClippingPlanes() const;
 };
 
 #endif /* STRUCTURES_HPP */

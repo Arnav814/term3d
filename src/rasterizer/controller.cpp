@@ -88,9 +88,28 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		static bool frameIndicator = true;
 		frameIndicator = not frameIndicator;
 
-		squareDrawing.clear();
-		finalDrawing.clear();
+		squareDrawing.clear(Color{
+		    {false, 999},
+            {255, 255, 255, 255}
+        });
+		finalDrawing.clear(Color{
+		    {false, 999},
+            {0, 0, 0, 0}
+        });
 		renderScene(squareDrawing, scene);
+
+		// draw a blue plus across the screen
+		for (int i = 0; i < squareDrawing.getHeight(); i++) {
+			squareDrawing.set(
+			    { i, squareDrawing.getWidth() / 2 },
+			    Color{{false, 998}, {0, 0, 255, 255}});
+		}
+		for (int i = 0; i < squareDrawing.getWidth(); i++) {
+			squareDrawing.set(
+			    { squareDrawing.getHeight() / 2, i },
+			    Color{{false, 998}, {0, 0, 255, 255}});
+		}
+
 		finalDrawing.insert({0, 0}, squareDrawing);
 
 		if (frameIndicator)
@@ -107,6 +126,7 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 			    Color{Category{false, 1}, RGBA{0, 0, 0, 255}});
 
 		finalDrawing.render();
+
 		notcurses_render(nc);
 
 		// std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -23,7 +23,9 @@ Sphere createBoundingSphere(const std::vector<dvec3>& points) {
 }
 
 double signedDistance(const Plane& plane, const dvec3& vertex) {
-	return vertex.x * plane.normal.x + vertex.y * plane.normal.y + vertex.z * plane.normal.z
+	return vertex.x * plane.normal.x + //
+	       vertex.y * plane.normal.y + //
+	       vertex.z * plane.normal.z //
 	       + plane.distance;
 }
 
@@ -169,6 +171,7 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 	}
 
 	inst->clearEmptyTris();
+	inst->clearUnusedPoints();
 }
 
 std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst) {
@@ -187,4 +190,18 @@ std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst
 
 	inst->clearEmptyTris();
 	return inst;
+}
+
+void InstanceSC3D::clearUnusedPoints() {
+	std::vector<bool> usedMap(this->getPoints().size(), false);
+	for (ColoredTriangle& tri : this->getTriangles()) {
+		for (uint i : tri.triangle) {
+			if (tri != NO_TRIANGLE) usedMap[i] = true;
+		}
+	}
+
+	for (uint i = 0; i < this->getPoints().size(); i++) {
+		// actually deleting them would break all subsequent indexes
+		if (usedMap[i] == false) this->getPoints()[i] = NO_POINT;
+	}
 }

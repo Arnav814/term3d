@@ -37,6 +37,7 @@ class SextantDrawing {
 	[[nodiscard]] Color get(const SextantCoord& coord) const;
 	[[nodiscard]] CoordIterator<SextantCoord> getIterator() const;
 	void clear();
+	void clear(const Color& color);
 	void set(const SextantCoord& coord, const Color setTo);
 	void trySet(const SextantCoord& coord, const Color setTo);
 	void resize(int newY, int newX);

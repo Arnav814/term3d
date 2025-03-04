@@ -1,4 +1,5 @@
 #include "rasterizer.hpp"
+#include "glm/ext/matrix_transform.hpp"
 #include "glm/geometric.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
@@ -23,6 +24,8 @@
 #define cmagenta Color(Category(true, 8), RGBA(255, 0, 255, 255))
 #define ccyan Color(Category(true, 8), RGBA(0, 255, 255, 255))
 #define cblack Color(Category(true, 8), RGBA(0, 0, 0, 255))
+
+#define origin {0, 0, 0}
 
 // adds a point to the object, replacing a triangle with three new triangles
 // creates 2 more triangles (-1 +3), but does NOT delete the original triangle,
@@ -152,8 +155,80 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 	return sphere;
 };
 
+// join duplicated points, using tolerance as the threshold for points to join
+void combinePoints(Object3D& object, const double tolerance = 0.001);
+
+// Add a square based pyramid to the supplied object.
+// baseCenter is the center of the pyramid's base
+// peakPoint is the location of the pointy end
+// baseSide indicates the side length of the base and also how the square is rotated
+//
+//    * <-- peakPoint
+//   / \
+//  /   \
+// +--*--* <-- baseSide
+//    ^-- baseCenter
+//
+void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
+                 const dvec3& peakPoint, const dvec3& baseSide) {
+	uint peakPointIdx = object.addVertex(peakPoint);
+
+	dvec3 baseSideOffset = baseSide - baseCenter;
+	dvec3 axis = peakPoint - baseCenter;
+	// see https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
+	glm::dmat3 rot90{
+	    // clang-format off
+		pow(axis.x, 2),           axis.x * axis.y - pow(axis.z, 2), axis.x * axis.z + axis.y,
+		axis.x * axis.y + axis.z, pow(axis.y, 2),                   axis.y * axis.z - axis.x,
+		axis.x * axis.z - axis.y, axis.y * axis.z + axis.x,         pow(axis.z, 2)
+	    // clang-format on
+	};
+	dvec3 offsetRot90 = baseSideOffset * rot90;
+
+	// all four corners of the base
+	std::array cornerIdxs{
+	    object.addVertex(baseCenter + baseSideOffset - offsetRot90),
+	    object.addVertex(baseCenter + baseSideOffset + offsetRot90),
+	    object.addVertex(baseCenter - baseSideOffset + offsetRot90),
+	    object.addVertex(baseCenter - baseSideOffset - offsetRot90),
+	};
+
+	std::println(std::cerr, "{}",
+	             cornerIdxs | std::ranges::views::transform([object](const uint idx) {
+		             return object.getPoints()[idx];
+	             }));
+
+	// side triangles
+	for (uint i = 0; i < cornerIdxs.size(); i++) {
+		// TODO: make sure all this is clockwise
+		uint i2 = i < cornerIdxs.size() ? i : 0; // the second vertex's index
+		dvec3 normal = glm::normalize(glm::cross(object.getPoints()[cornerIdxs[i]] - peakPoint,
+		                                         object.getPoints()[cornerIdxs[i2]] - peakPoint));
+
+		object.addTriangle(ColoredTriangle{
+		    {peakPointIdx, cornerIdxs[i], cornerIdxs[i2]},
+            color, {normal,       normal,        normal        }
+        });
+	}
+
+	// base triangles
+	dvec3 baseNormal = glm::normalize(-axis);
+	object.addTriangle(ColoredTriangle{
+	    {cornerIdxs[0], cornerIdxs[1], cornerIdxs[2]},
+        color, {baseNormal}
+    });
+	object.addTriangle(ColoredTriangle{
+	    {cornerIdxs[2], cornerIdxs[3], cornerIdxs[0]},
+        color, {baseNormal}
+    });
+}
+
 [[nodiscard]] Scene initScene() {
-	Camera camera(1, 1, 1);
+	Camera camera{1, 1, 1};
+	camera.setTransform(
+	    Transform({-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0));
+	// camera.setTransform(
+	//     Transform({9, 0, 0}, glm::identity<glm::dmat3>(), 1.0));
 
 	double ambientLight = 0.1;
 	Scene scene{{}, {}, {}, camera, Color(Category(true, 7), RGBA(0, 0, 0, 255)), ambientLight};
@@ -196,6 +271,14 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 	                                            glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0),
 	                                            0.75
     }));
+
+	Object3D axes{{}, {}, -1}; // helpful visualization
+	makePyramid(axes, cred, origin, {3, 0, 0}, {0, 0.5, 0}); // x axis
+	makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
+	makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0, 0.5}); // z axis
+	scene.objects.push_back(std::make_shared<Object3D>(axes));
+
+	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(axes), {}));
 
 	scene.instances.push_back(InstanceRef3D(
 	    std::make_shared<Object3D>(cube),
@@ -262,20 +345,27 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		vertex = canonicalize(homogenous);
 	}
 
-	clipInstance(copied, camera.getClippingPlanes());
+	std::vector<Plane> clippingPlanes = camera.getClippingPlanes();
+	clipInstance(copied, clippingPlanes);
 	if (copied == NULL) return;
 
-	copied = backFaceCulling(std::move(copied));
+	// copied = backFaceCulling(std::move(copied)); // FIXME: re-enable
 
 	std::vector<ivec2> projected;
 	projected.reserve(copied->getPoints().size());
 
 	for (const dvec3& vertex : copied->getPoints()) {
+		// skip missing points
+		if (vertex == NO_POINT) {
+			projected.push_back({0, 0});
+			continue;
+		}
+
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
 		dvec3 homogenous2d =
 		    camera.viewportTransform({canvas.getWidth(), canvas.getHeight()}) * homogenous;
 
-		assertGt(abs(homogenous.w), 0.1, "Clipping should have dealt with this?!");
+		assertGt(abs(homogenous2d.z), 0.1, "Clipping should have dealt with this?!");
 		glm::dvec2 canvasPoint = canonicalize(homogenous2d);
 		projected.push_back(canvasPoint);
 	}
