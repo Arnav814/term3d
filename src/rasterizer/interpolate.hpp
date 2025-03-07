@@ -36,7 +36,7 @@ inline double interpolateValue(const int x0, const double y0, const int x1, cons
 // instead of using x, this function uses t. t describes where the value is, and varies from 0 to 1
 // across the interpolated segment
 inline double interpolateValue(const double y0, const double y1, const double t) {
-	assertBetweenIncl(0, t, 1, "t must be between 0 and 1.");
+	assertBetweenIncl(-0.001, t, 0.001, "t must be between 0 and 1.");
 	return y0 + t * (y1 - y0);
 }
 
