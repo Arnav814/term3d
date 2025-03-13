@@ -253,7 +253,7 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 				dvec3 normal =
 				    glm::normalize(dvec3{pixel.normalX, pixel.normalY,
-				                         pixel.normalZ}); // TODO: is this normalize needed?
+				                         pixel.normalZ});
 				double lighting =
 				    computeLighting(camToDrawnPoint, normal, specular, ambientLight, lights);
 				RGBA newColor = color.color * lighting;

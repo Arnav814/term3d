@@ -88,13 +88,17 @@ class Object3D {
 
 	ColoredTriangle getTriangle(const uint idx) const { return this->triangles.at(idx); }
 
-	void setPoint(const uint idx, const dvec3& val) { this->points.at(idx) = val; }
+	void setPoint(const uint idx, const dvec3& val) {
+		assertFiniteVec(val, "Setting point to non finite value in object.");
+		this->points.at(idx) = val;
+	}
 
-	void setTriangle(const uint idx, const ColoredTriangle& val) { this->triangles.at(idx) = val; }
-
-	// [[deprecated]] std::vector<dvec3>& getPoints() { return this->points; }
-
-	// [[deprecated]] std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+	void setTriangle(const uint idx, const ColoredTriangle& val) {
+		for (const dvec3& normal : val.normals) {
+			assertFiniteVec(normal, "Normals must be finite.");
+		}
+		this->triangles.at(idx) = val;
+	}
 
 	Triangle<dvec3> getDvecTri(Triangle<uint> tri) {
 		return {this->points[tri[0]], this->points[tri[1]], this->points[tri[2]]};
@@ -202,13 +206,17 @@ class InstanceSC3D {
 
 	ColoredTriangle getTriangle(const uint idx) const { return this->triangles.at(idx); }
 
-	void setPoint(const uint idx, const dvec3& val) { this->points.at(idx) = val; }
+	void setPoint(const uint idx, const dvec3& val) {
+		assertFiniteVec(val, "Setting point to non finite value in instance.");
+		this->points.at(idx) = val;
+	}
 
-	void setTriangle(const uint idx, const ColoredTriangle& val) { this->triangles.at(idx) = val; }
-
-	// [[deprecated]] std::vector<dvec3>& getPoints() { return this->points; }
-
-	// [[deprecated]] std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+	void setTriangle(const uint idx, const ColoredTriangle& val) {
+		for (const dvec3& normal : val.normals) {
+			assertFiniteVec(normal, "Normals must be finite.");
+		}
+		this->triangles.at(idx) = val;
+	}
 
 	// don't use this very much; it's inefficient
 	Triangle<dvec3> getDvecTri(Triangle<uint> tri) {
