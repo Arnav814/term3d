@@ -1,9 +1,11 @@
 #ifndef MOREASSERTIONS_CPP
 #define MOREASSERTIONS_CPP
 #include <cassert>
-#include <execinfo.h>
-#include <iostream>
+#include <cmath>
 #include <exception>
+#include <execinfo.h>
+#include <glm/detail/qualifier.hpp>
+#include <iostream>
 
 // this file serves as a place for everything that needs to be included everywhere
 
@@ -26,6 +28,19 @@ inline void printTrace() {
 	}
 	std::cerr << std::flush;
 	free(strs);
+}
+
+template <glm::length_t Length, typename VecType, glm::qualifier Qual>
+inline bool isFinite(glm::vec<Length, VecType, Qual> vec) {
+	if constexpr (Length >= 1)
+		if (not std::isfinite(vec.x)) return false;
+	if constexpr (Length >= 2)
+		if (not std::isfinite(vec.y)) return false;
+	if constexpr (Length >= 3)
+		if (not std::isfinite(vec.z)) return false;
+	if constexpr (Length >= 4)
+		if (not std::isfinite(vec.w)) return false;
+	return true;
 }
 
 #ifndef NDEBUG
@@ -123,6 +138,25 @@ inline void printTrace() {
 			} \
 		} while (false)
 
+	#define assertFinite(value, message) \
+		do { \
+			if (not std::isfinite(value)) { \
+				std::cerr << "Assertion `" #value "` (" << value << ") is finite failed in " \
+				          << __FILE__ << " line " << __LINE__ << ": " << message << '\n'; \
+				std::terminate(); \
+			} \
+		} while (false)
+
+	#define assertFiniteVec(value, message) \
+		do { \
+			if (not isFinite(value)) { \
+				std::cerr << "Assertion `" #value "` (" << std::format("{}", value) \
+				          << ") is finite failed in " << __FILE__ << " line " << __LINE__ << ": " \
+				          << message << '\n'; \
+				std::terminate(); \
+			} \
+		} while (false)
+
 #else
 
 	#define assertMsg(condition, message) \
@@ -150,6 +184,12 @@ inline void printTrace() {
 		do { \
 		} while (false)
 	#define assertBetweenIncl(min, value, max, message) \
+		do { \
+		} while (false)
+	#define assertFinite(value, message) \
+		do { \
+		} while (false)
+	#define assertFiniteVec(value, message) \
 		do { \
 		} while (false)
 

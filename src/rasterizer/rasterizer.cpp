@@ -32,8 +32,8 @@
 // so the caller must then call clearEmptyTris
 void splitTriangle(Object3D& object, uint triangleIdx, dvec3 newPoint) {
 	uint newIdx = object.addVertex(newPoint);
-	ColoredTriangle triangle = object.getTriangles()[triangleIdx];
-	object.getTriangles()[triangleIdx] = NO_TRIANGLE;
+	ColoredTriangle triangle = object.getTriangle(triangleIdx);
+	object.setTriangle(triangleIdx, NO_TRIANGLE);
 
 	dvec3 newVec =
 	    glm::normalize((triangle.normals[0] + triangle.normals[1] + triangle.normals[2]) / 3.);
@@ -104,9 +104,9 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 		uint triangleCount = sphere.getTriangles().size();
 		for (uint triangleIdx = 0; triangleIdx < triangleCount; triangleIdx++) {
 			Triangle<dvec3> trianglePoints{
-			    sphere.getPoints()[sphere.getTriangles()[triangleIdx].triangle[0]],
-			    sphere.getPoints()[sphere.getTriangles()[triangleIdx].triangle[1]],
-			    sphere.getPoints()[sphere.getTriangles()[triangleIdx].triangle[2]]};
+			    sphere.getPoint(sphere.getTriangle(triangleIdx).triangle[0]),
+			    sphere.getPoint(sphere.getTriangle(triangleIdx).triangle[1]),
+			    sphere.getPoint(sphere.getTriangle(triangleIdx).triangle[2])};
 
 			dvec3 triangleCenter{
 			    // FIXME: I think this is wrong
@@ -124,10 +124,8 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 		sphere.clearEmptyTris();
 
 #ifndef NDEBUG
-		for (ColoredTriangle tri : sphere.getTriangles()) {
-			Triangle<dvec3> trianglePoints{sphere.getPoints()[tri.triangle[0]],
-			                               sphere.getPoints()[tri.triangle[1]],
-			                               sphere.getPoints()[tri.triangle[2]]};
+		for (const ColoredTriangle& tri : sphere.getTriangles()) {
+			Triangle<dvec3> trianglePoints = sphere.getDvecTri(tri.triangle);
 			Triangle<double> lengths{glm::distance(trianglePoints[0], trianglePoints[1]),
 			                         glm::distance(trianglePoints[1], trianglePoints[2]),
 			                         glm::distance(trianglePoints[2], trianglePoints[0])};
@@ -141,7 +139,7 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 #endif
 	}
 
-	for (auto i : sphere.getPoints()) {
+	for (const dvec3& i : sphere.getPoints()) {
 		assertBetweenIncl(radius - 0.1, glm::length(i), radius + 0.1,
 		                  "Sphere point is wrong length.");
 	}
@@ -175,15 +173,15 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 
 	dvec3 baseSideOffset = baseSide - baseCenter;
 	dvec3 axis = peakPoint - baseCenter;
-	// see https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
-	glm::dmat3 rot90{
-	    // clang-format off
-		pow(axis.x, 2),           axis.x * axis.y - pow(axis.z, 2), axis.x * axis.z + axis.y,
-		axis.x * axis.y + axis.z, pow(axis.y, 2),                   axis.y * axis.z - axis.x,
-		axis.x * axis.z - axis.y, axis.y * axis.z + axis.x,         pow(axis.z, 2)
-	    // clang-format on
-	};
-	dvec3 offsetRot90 = baseSideOffset * rot90;
+
+	// verify axis and baseSideOffset are perpendicular
+	if (not(abs(glm::dot(axis, baseSideOffset)) <= 0.001)) {
+		throw std::runtime_error(
+		    "Base side, base center, and peak point must form a right triangle");
+	}
+
+	dvec3 offsetRot90 =
+	    glm::normalize(glm::cross(baseSideOffset, axis)) * glm::length(baseSideOffset);
 
 	// all four corners of the base
 	std::array cornerIdxs{
@@ -201,9 +199,9 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	// side triangles
 	for (uint i = 0; i < cornerIdxs.size(); i++) {
 		// TODO: make sure all this is clockwise
-		uint i2 = i < cornerIdxs.size() ? i : 0; // the second vertex's index
-		dvec3 normal = glm::normalize(glm::cross(object.getPoints()[cornerIdxs[i]] - peakPoint,
-		                                         object.getPoints()[cornerIdxs[i2]] - peakPoint));
+		uint i2 = (i + 1) % cornerIdxs.size(); // the second vertex's index
+		dvec3 normal = glm::normalize(glm::cross(object.getPoint(cornerIdxs[i2]) - peakPoint,
+		                                         object.getPoint(cornerIdxs[i]) - peakPoint));
 
 		object.addTriangle(ColoredTriangle{
 		    {peakPointIdx, cornerIdxs[i], cornerIdxs[i2]},
@@ -274,8 +272,8 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 
 	Object3D axes{{}, {}, -1}; // helpful visualization
 	makePyramid(axes, cred, origin, {3, 0, 0}, {0, 0.5, 0}); // x axis
-	makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
-	makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0, 0.5}); // z axis
+	// makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
+	// makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0.5, 0}); // z axis
 	scene.objects.push_back(std::make_shared<Object3D>(axes));
 
 	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(axes), {}));
@@ -339,17 +337,18 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
                            const std::vector<std::shared_ptr<Light>> lights) {
 	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
-	for (dvec3& vertex : copied->getPoints()) {
+	for (uint vertexIdx = 0; vertexIdx < copied->getPoints().size(); vertexIdx++) {
+		dvec3 vertex = copied->getPoint(vertexIdx);
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
 		homogenous = (camera.getInvTransform() * objectInst.getObjTransform()) * homogenous;
-		vertex = canonicalize(homogenous);
+		copied->setPoint(vertexIdx, canonicalize(homogenous));
 	}
 
 	std::vector<Plane> clippingPlanes = camera.getClippingPlanes();
 	clipInstance(copied, clippingPlanes);
 	if (copied == NULL) return;
 
-	// copied = backFaceCulling(std::move(copied)); // FIXME: re-enable
+	copied = backFaceCulling(std::move(copied));
 
 	std::vector<ivec2> projected;
 	projected.reserve(copied->getPoints().size());

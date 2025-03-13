@@ -29,7 +29,7 @@ double signedDistance(const Plane& plane, const dvec3& vertex) {
 	       + plane.distance;
 }
 
-// reorganize the triangle so index is the first value
+// reorganize the triangle so index is the first v alue
 // preserves order, so back face culling still works
 template <typename T> Triangle<T> reorderTri(Triangle<T>& tri, const int index) {
 	Triangle<T> out;
@@ -58,15 +58,15 @@ int whichOf(const Triangle<T>& tri, const lambdaType& selector) {
 }
 
 void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) {
-	ColoredTriangle target = inst.getTriangles()[targetIdx];
+	ColoredTriangle target = inst.getTriangle(targetIdx);
 	Triangle<uint>& targetTri = target.triangle;
 	Triangle<dvec3>& normals = target.normals;
 	if (targetTri == NO_TRIANGLE.triangle) return;
-	Color color = inst.getTriangles()[targetIdx].color;
+	Color color = inst.getTriangle(targetIdx).color;
 
 	Triangle<double> distances{};
 	for (uint i = 0; i < 3; i++) {
-		distances[i] = signedDistance(plane, inst.getPoints()[targetTri[i]]);
+		distances[i] = signedDistance(plane, inst.getPoint(targetTri[i]));
 	}
 	uchar numPositive = (distances[0] >= 0) + (distances[1] >= 0) + (distances[2] >= 0);
 
@@ -80,11 +80,11 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		normals = reorderTri(normals, positiveIdx);
 
 		auto vertexA = intersectPlaneSegT(
-		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
+		    std::make_pair(inst.getPoint(targetTri[0]), inst.getPoint(targetTri[1])), plane);
 		auto vertexB = intersectPlaneSegT(
-		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[2]]), plane);
+		    std::make_pair(inst.getPoint(targetTri[0]), inst.getPoint(targetTri[2])), plane);
 
-		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
+		inst.setTriangle(targetIdx, NO_TRIANGLE);
 
 		// this will create duplicate points, but catching those would be too much work
 		inst.addTriangle({
@@ -107,14 +107,14 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 		normals = reorderTri(normals, negativeIdx);
 
 		auto p1Prime = intersectPlaneSegT(
-		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[1]]), plane);
+		    std::make_pair(inst.getPoint(targetTri[0]), inst.getPoint(targetTri[1])), plane);
 		auto p2Prime = intersectPlaneSegT(
-		    std::make_pair(inst.getPoints()[targetTri[0]], inst.getPoints()[targetTri[2]]), plane);
+		    std::make_pair(inst.getPoint(targetTri[0]), inst.getPoint(targetTri[2])), plane);
 
 		uint p1Idx = inst.addVertex(p1Prime.intersection);
 		uint p2Idx = inst.addVertex(p2Prime.intersection);
 
-		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
+		inst.setTriangle(targetIdx, NO_TRIANGLE);
 
 		dvec3 p1Normals{interpolateValue(normals[0].x, normals[1].x, p1Prime.t),
 		                interpolateValue(normals[0].y, normals[1].y, p1Prime.t),
@@ -134,7 +134,7 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
         });
 
 	} else if (numPositive == 0) { // all outside
-		inst.getTriangles()[targetIdx] = NO_TRIANGLE;
+		inst.setTriangle(targetIdx, NO_TRIANGLE);
 	}
 }
 
@@ -161,11 +161,12 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 				if (debugFrame)
 					std::println(
 					    std::cerr, "tris after clipping: {}",
-					    inst->getTriangles() | std::ranges::views::filter([](ColoredTriangle& tri) {
-						    return not(tri == NO_TRIANGLE);
-					    }) | std::ranges::views::transform([&inst](ColoredTriangle& tri) {
-						    return inst->getDvecTri(tri.triangle);
-					    }));
+					    inst->getTriangles()
+					        | std::ranges::views::filter(
+					            [](const ColoredTriangle& tri) { return not(tri == NO_TRIANGLE); })
+					        | std::ranges::views::transform([&inst](const ColoredTriangle& tri) {
+						          return inst->getDvecTri(tri.triangle);
+					          }));
 			}
 		}
 	}
@@ -176,16 +177,18 @@ void clipInstance(std::unique_ptr<InstanceSC3D>& inst, const std::vector<Plane>&
 
 std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst) {
 	// this algorithm requires vertices to be clockwise
-	for (auto& tri : inst->getTriangles()) {
-		// camera is at {0, 0, 0}, so this is the vector from the camera to triangle
-		dvec3 cameraVector = -inst->getPoints()[tri.triangle[0]];
+	for (uint triIdx = 0; triIdx < inst->getTriangles().size(); triIdx++) {
+		ColoredTriangle tri = inst->getTriangle(triIdx);
 
-		dvec3 triVecA = inst->getPoints()[tri.triangle[1]] - inst->getPoints()[tri.triangle[0]];
-		dvec3 triVecB = inst->getPoints()[tri.triangle[2]] - inst->getPoints()[tri.triangle[0]];
+		// camera is at {0, 0, 0}, so this is the vector from the camera to triangle
+		dvec3 cameraVector = -inst->getPoint(tri.triangle[0]);
+
+		dvec3 triVecA = inst->getPoint(tri.triangle[1]) - inst->getPoint(tri.triangle[0]);
+		dvec3 triVecB = inst->getPoint(tri.triangle[2]) - inst->getPoint(tri.triangle[0]);
 		dvec3 triNormal = glm::cross(triVecA, triVecB); // normal vector of triangle
 
 		// the == case is for directly side on triangles, so don't render them
-		if (glm::dot(triNormal, cameraVector) <= 0) tri = NO_TRIANGLE;
+		if (glm::dot(triNormal, cameraVector) <= 0) inst->setTriangle(triIdx, NO_TRIANGLE);
 	}
 
 	inst->clearEmptyTris();
@@ -194,7 +197,7 @@ std::unique_ptr<InstanceSC3D> backFaceCulling(std::unique_ptr<InstanceSC3D> inst
 
 void InstanceSC3D::clearUnusedPoints() {
 	std::vector<bool> usedMap(this->getPoints().size(), false);
-	for (ColoredTriangle& tri : this->getTriangles()) {
+	for (const ColoredTriangle& tri : this->getTriangles()) {
 		for (uint i : tri.triangle) {
 			if (tri != NO_TRIANGLE) usedMap[i] = true;
 		}
@@ -202,6 +205,6 @@ void InstanceSC3D::clearUnusedPoints() {
 
 	for (uint i = 0; i < this->getPoints().size(); i++) {
 		// actually deleting them would break all subsequent indexes
-		if (usedMap[i] == false) this->getPoints()[i] = NO_POINT;
+		if (usedMap[i] == false) this->getPoint(i) = NO_POINT;
 	}
 }

@@ -72,20 +72,39 @@ class Object3D {
   public:
 	Object3D(const std::vector<dvec3>& points, const std::vector<ColoredTriangle> triangles,
 	         const double specular)
-	    : points(points), triangles(triangles), specular(specular) {}
+	    : points(points), triangles(triangles), specular(specular) {
+#ifndef NDEBUG
+		for (const dvec3& point : points) {
+			assertFiniteVec(point, "Points must be finite in objects.");
+		}
+#endif
+	}
 
 	const std::vector<dvec3>& getPoints() const { return this->points; }
 
 	const std::vector<ColoredTriangle>& getTriangles() const { return this->triangles; }
 
-	std::vector<dvec3>& getPoints() { return this->points; }
+	dvec3 getPoint(const uint idx) const { return this->points.at(idx); }
 
-	std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+	ColoredTriangle getTriangle(const uint idx) const { return this->triangles.at(idx); }
+
+	void setPoint(const uint idx, const dvec3& val) { this->points.at(idx) = val; }
+
+	void setTriangle(const uint idx, const ColoredTriangle& val) { this->triangles.at(idx) = val; }
+
+	// [[deprecated]] std::vector<dvec3>& getPoints() { return this->points; }
+
+	// [[deprecated]] std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+
+	Triangle<dvec3> getDvecTri(Triangle<uint> tri) {
+		return {this->points[tri[0]], this->points[tri[1]], this->points[tri[2]]};
+	};
 
 	double getSpecular() const { return this->specular; }
 
 	// @return the added vertex's index
 	[[nodiscard]] uint addVertex(const dvec3& vertex) {
+		assertFiniteVec(vertex, "Vertexes must be finite in objects.");
 		this->points.push_back(vertex);
 		return this->points.size() - 1;
 	}
@@ -93,6 +112,9 @@ class Object3D {
 	void addTriangle(const ColoredTriangle& triangle) {
 		for (uint i = 0; i < 3; i++) {
 			assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
+		}
+		for (const dvec3& normal : triangle.normals) {
+			assertFiniteVec(normal, "Normals must be finite in objects.");
 		}
 		this->triangles.push_back(triangle);
 	}
@@ -157,6 +179,7 @@ class InstanceSC3D {
 
 	// @return the added vertex's index
 	[[nodiscard]] uint addVertex(const dvec3& vertex) {
+		assertFiniteVec(vertex, "Vertexes must be finite in instances.");
 		this->points.push_back(vertex);
 		return this->points.size() - 1;
 	}
@@ -165,6 +188,9 @@ class InstanceSC3D {
 		for (uint i = 0; i < 3; i++) {
 			assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
 		}
+		for (const dvec3& normal : triangle.normals) {
+			assertFiniteVec(normal, "Normals must be finite in instances.");
+		}
 		this->triangles.push_back(triangle);
 	}
 
@@ -172,9 +198,17 @@ class InstanceSC3D {
 
 	const std::vector<ColoredTriangle>& getTriangles() const { return this->triangles; }
 
-	std::vector<dvec3>& getPoints() { return this->points; }
+	dvec3 getPoint(const uint idx) const { return this->points.at(idx); }
 
-	std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
+	ColoredTriangle getTriangle(const uint idx) const { return this->triangles.at(idx); }
+
+	void setPoint(const uint idx, const dvec3& val) { this->points.at(idx) = val; }
+
+	void setTriangle(const uint idx, const ColoredTriangle& val) { this->triangles.at(idx) = val; }
+
+	// [[deprecated]] std::vector<dvec3>& getPoints() { return this->points; }
+
+	// [[deprecated]] std::vector<ColoredTriangle>& getTriangles() { return this->triangles; }
 
 	// don't use this very much; it's inefficient
 	Triangle<dvec3> getDvecTri(Triangle<uint> tri) {

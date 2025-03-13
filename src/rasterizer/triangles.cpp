@@ -34,6 +34,11 @@ static dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
 static double computeLighting(const dvec3 point, const dvec3 normal, const double specular,
                               const double ambientLight,
                               const std::vector<std::shared_ptr<Light>> lights) {
+	assertFiniteVec(point, "");
+	assertFiniteVec(normal, "");
+	assertFinite(specular, "");
+	assertFinite(ambientLight, "");
+	
 	double intensity = ambientLight;
 
 	for (const std::shared_ptr<const Light> light : lights) {
