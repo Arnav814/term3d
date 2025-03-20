@@ -14,6 +14,38 @@ extern bool debugFrame;
 
 template <typename T> using Triangle = std::array<T, 3>;
 
+// applies lambda to each element of tri and discards the return value
+template <typename T, typename LambdaType>
+inline void forAll(const Triangle<T> tri, const LambdaType lambda) {
+	for (const T& elem : tri) {
+		lambda(elem);
+	}
+}
+
+// applies lambda to each element of tri and sets the element to the return value
+template <typename T, typename LambdaType>
+inline void setAll(Triangle<T> tri, const LambdaType lambda) {
+	for (T& elem : tri) {
+		elem = lambda(elem);
+	}
+}
+
+// applies lambda to all pairs of 2 elements from tri and discards the return value
+template <typename T, typename LambdaType>
+inline void forAllPairs(const Triangle<T> tri, const LambdaType lambda) {
+	lambda(std::make_pair(tri[0], tri[1]));
+	lambda(std::make_pair(tri[0], tri[2]));
+	lambda(std::make_pair(tri[1], tri[2]));
+}
+
+// applies lambda to all pairs of 2 elements from tri and returns the return value
+template <typename T, typename LambdaType>
+inline Triangle<T> forAllPairsRet(const Triangle<T> tri, const LambdaType lambda) {
+	return {lambda(std::make_pair(tri[0], tri[1])), //
+	        lambda(std::make_pair(tri[0], tri[2])), //
+	        lambda(std::make_pair(tri[1], tri[2]))};
+}
+
 #define NO_TRIANGLE \
 	ColoredTriangle { \
 		{std::numeric_limits<uint>::max(), std::numeric_limits<uint>::max(), \
