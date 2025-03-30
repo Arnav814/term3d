@@ -10,6 +10,8 @@
 
 using glm::dvec3, glm::dvec4, glm::ivec2, glm::dmat4;
 
+#define origin dvec3{0, 0, 0}
+
 extern bool debugFrame;
 
 template <typename T> using Triangle = std::array<T, 3>;
@@ -115,6 +117,7 @@ Transform invertTransform(const Transform& transform);
 struct Camera {
   private:
 	dmat4 invTransform;
+	dmat4 matTransform;
 	Transform transform;
 
   public:
@@ -138,11 +141,14 @@ struct Camera {
 	void setTransform(const Transform& transform) {
 		this->transform = transform;
 		this->invTransform = parseTransform(invertTransform(this->transform));
+		this->matTransform = parseTransform(this->transform);
 	}
 
 	const Transform& getTransform() { return this->transform; }
 
 	const dmat4& getInvTransform() const { return this->invTransform; }
+
+	const dmat4& getMatTransform() const { return this->matTransform; }
 
 	std::vector<Plane> getClippingPlanes() const;
 };

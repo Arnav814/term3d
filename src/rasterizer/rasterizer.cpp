@@ -1,11 +1,14 @@
 #include "rasterizer.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
 #include "glm/geometric.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
 #include "triangles.hpp"
+#include <algorithm>
 #include <boost/multi_array.hpp>
 #include <boost/range/join.hpp>
+#include <cmath>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/ext/vector_double4.hpp>
 #include <glm/ext/vector_int2.hpp>
@@ -24,8 +27,6 @@
 #define cmagenta Color(Category(true, 8), RGBA(255, 0, 255, 255))
 #define ccyan Color(Category(true, 8), RGBA(0, 255, 255, 255))
 #define cblack Color(Category(true, 8), RGBA(0, 0, 0, 255))
-
-#define origin {0, 0, 0}
 
 // adds a point to the object, replacing a triangle with three new triangles
 // creates 2 more triangles (-1 +3), but does NOT delete the original triangle,
@@ -191,21 +192,16 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	    object.addVertex(baseCenter - baseSideOffset - offsetRot90),
 	};
 
-	std::println(std::cerr, "{}",
-	             cornerIdxs | std::ranges::views::transform([object](const uint idx) {
-		             return object.getPoints()[idx];
-	             }));
-
 	// side triangles
 	for (uint i = 0; i < cornerIdxs.size(); i++) {
-		// TODO: make sure all this is clockwise
 		uint i2 = (i + 1) % cornerIdxs.size(); // the second vertex's index
+		// TODO: check this works
 		dvec3 normal = glm::normalize(glm::cross(object.getPoint(cornerIdxs[i2]) - peakPoint,
 		                                         object.getPoint(cornerIdxs[i]) - peakPoint));
 
 		object.addTriangle(ColoredTriangle{
-		    {peakPointIdx, cornerIdxs[i], cornerIdxs[i2]},
-            color, {normal,       normal,        normal        }
+		    {peakPointIdx, cornerIdxs[i2], cornerIdxs[i]},
+            color, {normal,       normal,         normal       }
         });
 	}
 
@@ -213,11 +209,13 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	dvec3 baseNormal = glm::normalize(-axis);
 	object.addTriangle(ColoredTriangle{
 	    {cornerIdxs[0], cornerIdxs[1], cornerIdxs[2]},
-        color, {baseNormal}
+	    color,
+	    {baseNormal,    baseNormal,    baseNormal   }
     });
 	object.addTriangle(ColoredTriangle{
 	    {cornerIdxs[2], cornerIdxs[3], cornerIdxs[0]},
-        color, {baseNormal}
+	    color,
+	    {baseNormal,    baseNormal,    baseNormal   }
     });
 }
 
@@ -262,27 +260,30 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	// Object3D sphere = makeSphere(ccyan, -1, 1.0, 3);
 	// scene.objects.push_back(std::make_shared<Object3D>(sphere));
 
-	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(cube),
-	                                        {
-	                                            {-1.5, 0, 7},
-	                                            // glm::yawPitchRoll<double>(0, 0, 0),
-	                                            glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0),
-	                                            0.75
+	scene.instances.push_back(
+	    InstanceRef3D(std::make_shared<Object3D>(cube),
+	                  {
+	                      {-1.5, 0, 7},
+	                      glm::identity<dmat4>(),
+	                      // glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0),
+	                      0.75
     }));
 
 	Object3D axes{{}, {}, -1}; // helpful visualization
 	makePyramid(axes, cred, origin, {3, 0, 0}, {0, 0.5, 0}); // x axis
-	// makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
-	// makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0.5, 0}); // z axis
+	makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
+	makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0.5, 0}); // z axis
 	scene.objects.push_back(std::make_shared<Object3D>(axes));
 
 	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(axes), {}));
 
-	scene.instances.push_back(InstanceRef3D(
-	    std::make_shared<Object3D>(cube),
-	    {
-	        {1.25, 2.5, 7.5},
-            glm::yawPitchRoll<double>(glm::radians(195.0), 0, 0), 1.0
+	scene.instances.push_back(
+	    InstanceRef3D(std::make_shared<Object3D>(cube),
+	                  {
+	                      {1.25, 2.5, 7.5},
+	                      glm::identity<dmat4>(),
+	                      // glm::yawPitchRoll<double>(glm::radians(195.0), 0, 0),
+	                      1.0
     }));
 
 	// scene.instances.push_back(
@@ -292,15 +293,15 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	// glm::yawPitchRoll<double>(0, 0, 0), 1.0
 	// }));
 
-	scene.instances.push_back(InstanceRef3D(
-	    std::make_shared<Object3D>(cube), {
-	                                          {2, 1, 0},
-                                              glm::yawPitchRoll<double>(0, 0, 0), 0.5
-    }));
+	// scene.instances.push_back(InstanceRef3D(
+	//     std::make_shared<Object3D>(cube), {
+	//                                           {2, 1, 0},
+	// glm::yawPitchRoll<double>(0, 0, 0), 0.5
+	// }));
 
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.3, dvec3(1.0, 4.0, 4.0)));
-	scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
-	// scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
+	// scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
+	scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.8, dvec3(1.0, 4.0, 4.0)));
 
 	return scene;
@@ -315,12 +316,12 @@ translateLights(const std::vector<std::shared_ptr<Light>>& lights, const dmat4 t
 		auto asPoint = dynamic_pointer_cast<const PointLight>(light);
 		if (asPoint != NULL) {
 			dvec3 position = asPoint->getPosition();
-			dvec4 homogenous = {position.x, position.y, position.z, 1};
-			out.push_back(std::make_shared<PointLight>(
-			    PointLight{asPoint->getIntensity(), canonicalize(translation * homogenous)}));
+			dvec4 homogenous = toHomogenous(position);
+			dvec3 newPoint = canonicalize(translation * homogenous);
+			out.push_back(
+			    std::make_shared<PointLight>(PointLight{asPoint->getIntensity(), newPoint}));
 			if (debugFrame)
-				std::println(std::cerr, "light at {} translated to {}", glm::to_string(position),
-				             glm::to_string(canonicalize(translation * homogenous)));
+				std::println(std::cerr, "light at {} translated to {}", position, newPoint);
 		} else {
 			// do nothing for directional lights
 			// FIXME: this isn't right
@@ -330,23 +331,28 @@ translateLights(const std::vector<std::shared_ptr<Light>>& lights, const dmat4 t
 	return out;
 }
 
-// light positions should already be relative to camera
 static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                            const Camera& camera, const InstanceRef3D& objectInst,
                            const double ambientLight,
                            const std::vector<std::shared_ptr<Light>> lights) {
 	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
+	dmat4 toCam = camera.getInvTransform() * objectInst.getObjTransform();
+
 	for (uint vertexIdx = 0; vertexIdx < copied->getPoints().size(); vertexIdx++) {
 		dvec3 vertex = copied->getPoint(vertexIdx);
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
-		homogenous = (camera.getInvTransform() * objectInst.getObjTransform()) * homogenous;
+		homogenous = toCam * homogenous;
 		copied->setPoint(vertexIdx, canonicalize(homogenous));
 	}
 
 	std::vector<Plane> clippingPlanes = camera.getClippingPlanes();
 	clipInstance(copied, clippingPlanes);
 	if (copied == NULL) return;
+
+	// light translated to be in object coordinates, for lighting calculations
+	// lights are inputted in world coordinates
+	std::vector instLights = translateLights(lights, copied->getInvObjTransform());
 
 	copied = backFaceCulling(std::move(copied));
 
@@ -364,13 +370,19 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		dvec3 homogenous2d =
 		    camera.viewportTransform({canvas.getWidth(), canvas.getHeight()}) * homogenous;
 
-		assertGt(abs(homogenous2d.z), 0.1, "Clipping should have dealt with this?!");
-		glm::dvec2 canvasPoint = canonicalize(homogenous2d);
+		glm::dvec2 canvasPoint;
+		// if the vertex if bad, just ignore it because clipping should have removed all triangles
+		// that use it
+		if (abs(homogenous2d.z) > 0.001) {
+			canvasPoint = canonicalize(homogenous2d);
+		} else {
+			canvasPoint = {0, 0};
+		}
 		projected.push_back(canvasPoint);
 	}
 
 	if (debugFrame) {
-		std::println(std::cerr, "Rendering instance.");
+		std::println(std::cerr, "Rendering instance @ {}.", copied->getTransform());
 		for (uint i = 0; i < projected.size(); i++) {
 			std::println(std::cerr, "{} {} {}", glm::to_string(projected[i]),
 			             glm::to_string(copied->getPoints()[i]),
@@ -380,7 +392,8 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 
 	for (const ColoredTriangle& triangle : copied->getTriangles()) {
 		if (debugFrame) // print 3d points, renderTriangle prints 2d points
-			std::println(std::cerr, "Drawing tri {}.", copied->getDvecTri(triangle.triangle));
+			std::println(std::cerr, "Drawing tri {};\nnormals: {}.",
+			             copied->getDvecTri(triangle.triangle), triangle.normals);
 		renderTriangle(
 		    canvas, depthBuffer,
 		    {projected[triangle.triangle[0]], projected[triangle.triangle[1]],
@@ -390,7 +403,8 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[1]])),
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[2]])),
 		    },
-		    triangle.normals, triangle.color, ambientLight, copied->getSpecular(), camera, lights);
+		    triangle.normals, triangle.color, ambientLight, copied->getSpecular(), camera,
+		    (copied->getObjTransform() * camera.getMatTransform()), instLights);
 	}
 }
 
@@ -409,9 +423,29 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 
 	std::vector<std::shared_ptr<Light>> translatedLights =
 	    translateLights(scene.lights, scene.camera.getInvTransform());
+
+	for (std::shared_ptr<Light> lightPtr : translatedLights) {
+		dvec3 lightDir = lightPtr->getDirection(origin);
+		dvec4 homogenous = {lightDir.x, lightDir.y, lightDir.z, 1};
+		dvec3 homogenous2d =
+		    scene.camera.viewportTransform({canvas.getWidth(), canvas.getHeight()}) * homogenous;
+		ivec2 point = canonicalize(homogenous2d);
+
+		float dist = glm::length(lightDir);
+
+		renderTriangle(canvas, depthBuffer,
+		               {
+		                   point + ivec2{2,  0 },
+                             point + ivec2{-1, -1},
+                             point + ivec2{-1, 1 }
+        },
+		               {dist, dist, dist}, {dvec3{-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}}, cblack, 0.5,
+		               -1, scene.camera, glm::identity<dmat4>(), {});
+	}
+
 	for (const InstanceRef3D& objectInst : scene.instances) {
 		renderInstance(canvas, depthBuffer, scene.camera, objectInst, scene.ambientLight,
-		               translatedLights);
+		               scene.lights);
 	}
 
 	if (debugFrame) {

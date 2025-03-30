@@ -39,6 +39,6 @@ std::vector<Plane> Camera::getClippingPlanes() const { // TODO: allow changing F
 	    {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)},  0},
 	    {{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
 	    // for the viewport
-	    {{0, 0, 1},	                                      1} // negate till it works
-    };
+	    {{0, 0, 1},	                                      1}  // negate till it works
+	};
 }

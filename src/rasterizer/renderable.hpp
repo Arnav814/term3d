@@ -25,6 +25,24 @@ inline dvec3 intersectPlaneSeg(const std::pair<dvec3, dvec3>& segment, const Pla
 	return segment.first + t * (segment.second - segment.first);
 }
 
+#ifndef NDEBUG
+// does not check the indexes are valid
+inline void validateTri(const ColoredTriangle& tri) {
+	if (tri == NO_TRIANGLE) return;
+	forAll(tri.normals, [](const dvec3& normal) {
+		assertFiniteVec(normal, "Normals must be finite.");
+		assertBetweenIncl(0.999, glm::length(normal), 1.001, "Normals need a length of 1.");
+	});
+	forAllPairs(tri.normals, [](const std::pair<dvec3, dvec3> normalPair) {
+		dvec3 sum = normalPair.first + normalPair.second;
+		assertGt(abs(sum.x) + abs(sum.y) + abs(sum.z), 0.001,
+		         "Normals can't point directly away from each other.");
+	});
+}
+#else
+inline void validateTri(ColoredTriangle& tri) {}
+#endif
+
 struct IntersectPlaneSegTRetVal {
 	double t;
 	dvec3 intersection;
@@ -94,9 +112,11 @@ class Object3D {
 	}
 
 	void setTriangle(const uint idx, const ColoredTriangle& val) {
-		for (const dvec3& normal : val.normals) {
-			assertFiniteVec(normal, "Normals must be finite.");
-		}
+		if (val != NO_TRIANGLE)
+			for (uint i = 0; i < 3; i++) {
+				assertLt(val.triangle[i], this->points.size(), "val index out of range.");
+			}
+		validateTri(val);
 		this->triangles.at(idx) = val;
 	}
 
@@ -114,12 +134,11 @@ class Object3D {
 	}
 
 	void addTriangle(const ColoredTriangle& triangle) {
-		for (uint i = 0; i < 3; i++) {
-			assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
-		}
-		for (const dvec3& normal : triangle.normals) {
-			assertFiniteVec(normal, "Normals must be finite in objects.");
-		}
+		if (triangle != NO_TRIANGLE)
+			for (uint i = 0; i < 3; i++) {
+				assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
+			}
+		validateTri(triangle);
 		this->triangles.push_back(triangle);
 	}
 
@@ -140,6 +159,7 @@ class InstanceRef3D {
 	std::shared_ptr<Object3D> object3d;
 	Transform transform;
 	mutable std::optional<dmat4> cachedTransform{};
+	mutable std::optional<dmat4> cachedInvTransform{};
 	mutable std::optional<Sphere> cachedSphere{};
 
   public:
@@ -151,6 +171,12 @@ class InstanceRef3D {
 		if (not this->cachedTransform.has_value())
 			this->cachedTransform = parseTransform(this->transform);
 		return this->cachedTransform.value();
+	};
+
+	const dmat4& getInvObjTransform() const {
+		if (not this->cachedInvTransform.has_value())
+			this->cachedInvTransform = parseTransform(invertTransform(this->transform));
+		return this->cachedInvTransform.value();
 	};
 
 	Sphere getBoundingSphere() const {
@@ -169,6 +195,7 @@ class InstanceSC3D {
 	Transform transform;
 	double specular;
 	mutable std::optional<dmat4> cachedTransform{};
+	mutable std::optional<dmat4> cachedInvTransform{};
 	mutable std::optional<Sphere> cachedSphere{};
 
   public:
@@ -189,12 +216,11 @@ class InstanceSC3D {
 	}
 
 	void addTriangle(const ColoredTriangle& triangle) {
-		for (uint i = 0; i < 3; i++) {
-			assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
-		}
-		for (const dvec3& normal : triangle.normals) {
-			assertFiniteVec(normal, "Normals must be finite in instances.");
-		}
+		if (triangle != NO_TRIANGLE)
+			for (uint i = 0; i < 3; i++) {
+				assertLt(triangle.triangle[i], this->points.size(), "Triangle index out of range.");
+			}
+		validateTri(triangle);
 		this->triangles.push_back(triangle);
 	}
 
@@ -212,9 +238,11 @@ class InstanceSC3D {
 	}
 
 	void setTriangle(const uint idx, const ColoredTriangle& val) {
-		for (const dvec3& normal : val.normals) {
-			assertFiniteVec(normal, "Normals must be finite.");
-		}
+		if (val != NO_TRIANGLE)
+			for (uint i = 0; i < 3; i++) {
+				assertLt(val.triangle[i], this->points.size(), "val index out of range.");
+			}
+		validateTri(val);
 		this->triangles.at(idx) = val;
 	}
 
@@ -249,6 +277,12 @@ class InstanceSC3D {
 		if (not this->cachedTransform.has_value())
 			this->cachedTransform = parseTransform(this->transform);
 		return this->cachedTransform.value();
+	};
+
+	const dmat4& getInvObjTransform() const {
+		if (not this->cachedInvTransform.has_value())
+			this->cachedInvTransform = parseTransform(invertTransform(this->transform));
+		return this->cachedInvTransform.value();
 	};
 
 	virtual ~InstanceSC3D() = default;

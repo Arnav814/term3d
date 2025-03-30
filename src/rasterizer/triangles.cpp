@@ -31,18 +31,20 @@ static dvec3 reflectRay(const dvec3 ray, const dvec3 around) {
 	return around * glm::dot(around, ray) * 2.0 - ray;
 }
 
-static double computeLighting(const dvec3 point, const dvec3 normal, const double specular,
-                              const double ambientLight,
+static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3 normal,
+                              const double specular, const double ambientLight,
                               const std::vector<std::shared_ptr<Light>> lights) {
 	assertFiniteVec(point, "");
+	assertFiniteVec(camera, "");
 	assertFiniteVec(normal, "");
 	assertFinite(specular, "");
 	assertFinite(ambientLight, "");
-	
+
 	double intensity = ambientLight;
+	dvec3 camToPoint = point - camera;
 
 	for (const std::shared_ptr<const Light> light : lights) {
-		dvec3 lightDir = light->getDirection(point);
+		dvec3 lightDir = light->getDirection(camToPoint);
 
 		if (debugFrame) {
 			std::print(std::cerr, "[light from vec {:.2f}:", lightDir);
@@ -50,7 +52,7 @@ static double computeLighting(const dvec3 point, const dvec3 normal, const doubl
 		}
 
 		// diffuse
-		double normalDotLight = glm::dot(normal, lightDir);
+		double normalDotLight = glm::dot(normal, glm::normalize(lightDir));
 		if (debugFrame) std::print(std::cerr, "ndl:{}, ", normalDotLight);
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight)
@@ -63,11 +65,12 @@ static double computeLighting(const dvec3 point, const dvec3 normal, const doubl
 		// specular
 		if (specular != -1) {
 			dvec3 reflected = reflectRay(lightDir, normal);
-			double reflectedDotExit = glm::dot(reflected, -point);
+			double reflectedDotExit = glm::dot(reflected, -camToPoint);
 			if (reflectedDotExit > 0) {
-				intensity += light->getIntensity()
-				             * pow(reflectedDotExit / (glm::length(reflected) * glm::length(point)),
-				                   specular);
+				intensity +=
+				    light->getIntensity()
+				    * pow(reflectedDotExit / (glm::length(reflected) * glm::length(camToPoint)),
+				          specular);
 			}
 		}
 
@@ -125,7 +128,8 @@ struct RowElems {
 void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                         Triangle<ivec2> points, Triangle<float> depth, Triangle<dvec3> normals,
                         const Color color, const double ambientLight, const double specular,
-                        const Camera& camera, const std::vector<std::shared_ptr<Light>>& lights) {
+                        const Camera& camera, const dmat4& camToObj,
+                        const std::vector<std::shared_ptr<Light>>& lights) {
 	// sort top to bottom, so p0.y < p1.y < p2.y
 	// we don't care about ordering clockwise anymore, so this is fine
 	if (points[1].y < points[0].y) {
@@ -146,19 +150,8 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
 
-	// visualize point lights
-	if (debugFrame)
-		for (std::shared_ptr<Light> lightPtr : lights) {
-			std::shared_ptr<PointLight> asPointLight = dynamic_pointer_cast<PointLight>(lightPtr);
-			if (asPointLight == NULL) break;
-			ivec2 projected = canonicalize(toHomogenous(asPointLight->getPosition())
-			                               * camera.viewportTransform(canvasSize));
-			putPixel(canvas, SextantCoord(projected.y, projected.x),
-			         Color{
-			             {false, 1},
-                         {255, 255, 255, 255}
-            });
-		}
+	dvec3 camPosInObjCoords = canonicalize(camToObj * toHomogenous(origin));
+	if (debugFrame) std::println(std::cerr, "drawing tri: {}, cam @ {}", points, camPosInObjCoords);
 
 	// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
@@ -251,11 +244,12 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 				camToDrawnPoint.z =
 				    sqrt(pow(depth, 2) - pow(camToDrawnPoint.x, 2) - pow(camToDrawnPoint.y, 2));
 
-				dvec3 normal =
-				    glm::normalize(dvec3{pixel.normalX, pixel.normalY,
-				                         pixel.normalZ});
-				double lighting =
-				    computeLighting(camToDrawnPoint, normal, specular, ambientLight, lights);
+				// point in object-relative coordinates
+				dvec3 pointObj = canonicalize(camToObj * toHomogenous(camToDrawnPoint));
+
+				dvec3 normal = glm::normalize(dvec3{pixel.normalX, pixel.normalY, pixel.normalZ});
+				double lighting = computeLighting(pointObj, camPosInObjCoords, normal,
+				                                  specular, ambientLight, lights);
 				RGBA newColor = color.color * lighting;
 
 				// #ifndef NDEBUG
@@ -281,13 +275,8 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthBuffer,
                     const Triangle<ivec2>& triangle, const Triangle<float>& depth,
                     const Triangle<dvec3> normals, const Color color, const double ambientLight,
-                    const double specular, const Camera& camera,
+                    const double specular, const Camera& camera, const dmat4& camToObj,
                     const std::vector<std::shared_ptr<Light>> lights) {
-	if (debugFrame) {
-		std::println(std::cerr, "drawing tri: p0: {}, p1: {}, p2: {}", glm::to_string(triangle[0]),
-		             glm::to_string(triangle[1]), glm::to_string(triangle[2]));
-	}
-
 	// randomize colors so tris can be distinguished
 	Color color2 = color;
 	if (debugFrame) {
@@ -299,5 +288,5 @@ void renderTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& depthB
 	}
 
 	drawFilledTriangle(canvas, depthBuffer, triangle, depth, normals, color2, ambientLight,
-	                   specular, camera, lights);
+	                   specular, camera, camToObj, lights);
 }
