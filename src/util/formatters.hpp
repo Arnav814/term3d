@@ -34,4 +34,25 @@ struct std::formatter<glm::vec<Length, VecType, Qual>> : std::formatter<VecType>
 	};
 };
 
+template <glm::length_t Cols, glm::length_t Rows, typename MatType, glm::qualifier Qual>
+struct std::formatter<glm::mat<Cols, Rows, MatType, Qual>> : std::formatter<MatType> {
+	using std::formatter<MatType>::parse;
+
+	auto format(glm::mat<Cols, Rows, MatType, Qual> const& val, auto& ctx) const {
+		auto out = ctx.out();
+		out = std::format_to(out, "{}mat{}x{}(", typeid(MatType).name()[0], Rows, Cols);
+		for (uint row = 0; row < Rows; row++) {
+			out = std::format_to(out, "(");
+			for (uint col = 0; col < Cols; col++) {
+				if (col != 0) out = std::format_to(out, ", ");
+				std::formatter<MatType>::format(val[row][col], ctx);
+			}
+			out = std::format_to(out, ")");
+		}
+		out = std::format_to(out, ")");
+		ctx.advance_to(out);
+		return out;
+	};
+};
+
 #endif /* GLMFORMATTERS_HPP */
