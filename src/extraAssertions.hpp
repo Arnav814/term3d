@@ -13,10 +13,6 @@ typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
 
-#define sNaN_d std::numeric_limits<double>::signaling_NaN()
-#define sNaN_f std::numeric_limits<float>::signaling_NaN()
-#define SMALL 0.001
-
 // slightly less verbose
 #define ALL_OF(vector) (vector).begin(), (vector).end()
 
