@@ -78,10 +78,9 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 				break;
 			case 'x': debugFrame = true; break;
 			}
-			// FIXME: moving feels off
-			scene.camera.setTransform(scene.camera.getTransform() + transform);
+			scene.camera.translateBy(transform);
 			if (debugFrame)
-				std::println(std::cerr, "moved:{}, camera:{}", transform,
+				std::println(std::cerr, "moved: {}\ncamera: {}", transform,
 				             scene.camera.getTransform());
 		} while (inputCode != 0 && key.id != NCKEY_EOF /* TODO: what is this EOF thing */);
 
@@ -101,12 +100,16 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		// draw a blue plus across the screen
 		for (int i = 0; i < squareDrawing.getHeight(); i++) {
 			squareDrawing.set(
-			    { i, squareDrawing.getWidth() / 2 },
+			    {
+			        i, squareDrawing.getWidth() / 2
+            },
 			    Color{{false, 998}, {0, 0, 255, 255}});
 		}
 		for (int i = 0; i < squareDrawing.getWidth(); i++) {
 			squareDrawing.set(
-			    { squareDrawing.getHeight() / 2, i },
+			    {
+			        squareDrawing.getHeight() / 2, i
+            },
 			    Color{{false, 998}, {0, 0, 255, 255}});
 		}
 
@@ -115,17 +118,20 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		if (frameIndicator)
 			finalDrawing.set(
 			    SextantCoord{
-			        0, 0
+			        0, finalDrawing.getWidth() - 1
             },
 			    Color{Category{false, 1}, RGBA{255, 255, 255, 255}});
 		else
 			finalDrawing.set(
 			    SextantCoord{
-			        0, 0
+			        0, finalDrawing.getWidth() - 1
             },
 			    Color{Category{false, 1}, RGBA{0, 0, 0, 255}});
 
 		finalDrawing.render();
+
+		ncplane_set_bg_rgb8(plane, 255, 255, 255);
+		ncplane_putstr_yx(plane, 0, 0, std::format("{}", scene.camera.getTransform()).c_str());
 
 		notcurses_render(nc);
 
