@@ -1,6 +1,8 @@
 #ifndef STRUCTURES_HPP
 #define STRUCTURES_HPP
 #include "../drawing/setColor.hpp"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/gtx/dual_quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include <glm/ext/matrix_double4x4.hpp>
 #include <glm/ext/vector_double3.hpp>
@@ -93,11 +95,6 @@ struct Transform {
 	    : translation(translation), rotation(rotation), scale(scale, scale, scale) {}
 
 	Transform() : Transform({0, 0, 0}, glm::dmat3(1 /* identity matrix */), 1.0) {}
-
-	Transform operator+(const Transform& other) const {
-		return Transform{this->translation + other.translation, this->rotation * other.rotation,
-		                 this->scale * other.scale};
-	}
 };
 
 template <> struct std::formatter<Transform> : std::formatter<string> {
@@ -112,13 +109,15 @@ template <> struct std::formatter<Transform> : std::formatter<string> {
 
 dmat4 parseTransform(const Transform& transform);
 
+bool isAffine(const dmat4& mat);
+Transform decompose(dmat4 mat);
+
 Transform invertTransform(const Transform& transform);
 
 struct Camera {
   private:
 	dmat4 invTransform;
 	dmat4 matTransform;
-	Transform transform;
 
   public:
 	double viewportWidth;
@@ -126,7 +125,8 @@ struct Camera {
 	double viewportDistance;
 
 	Camera(double viewportWidth, double viewportHeight, double viewportDistance)
-	    : transform(Transform()), viewportWidth(viewportWidth), viewportHeight(viewportHeight),
+	    : invTransform(glm::identity<dmat4>()), matTransform(glm::identity<dmat4>()),
+	      viewportWidth(viewportWidth), viewportHeight(viewportHeight),
 	      viewportDistance(viewportDistance) {}
 
 	glm::dmat3x4 viewportTransform(const ivec2 canvasSize) const {
@@ -139,12 +139,18 @@ struct Camera {
 	// Sets the camera's position.
 	// Do not invert -- this will do that by itself.
 	void setTransform(const Transform& transform) {
-		this->transform = transform;
-		this->invTransform = parseTransform(invertTransform(this->transform));
-		this->matTransform = parseTransform(this->transform);
+		this->invTransform = parseTransform(invertTransform(transform));
+		this->matTransform = parseTransform(transform);
 	}
 
-	const Transform& getTransform() { return this->transform; }
+	// Do not invert -- this will do that by itself.
+	void translateBy(const Transform& transform) {
+		this->invTransform = parseTransform(invertTransform(transform)) * this->invTransform;
+		this->matTransform = glm::inverse(this->invTransform);
+	}
+
+	// quite slow, so don't call often
+	const Transform getTransform() { return decompose(this->matTransform); }
 
 	const dmat4& getInvTransform() const { return this->invTransform; }
 
