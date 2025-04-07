@@ -340,7 +340,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
                            const std::vector<std::shared_ptr<Light>> lights) {
 	std::unique_ptr<InstanceSC3D> copied = std::make_unique<InstanceSC3D>(InstanceSC3D{objectInst});
 
-	dmat4 toCam = camera.getInvTransform() * objectInst.getObjTransform();
+	dmat4 toCam = camera.toCameraSpace() * objectInst.fromObjectSpace();
 
 	for (uint vertexIdx = 0; vertexIdx < copied->getPoints().size(); vertexIdx++) {
 		dvec3 vertex = copied->getPoint(vertexIdx);
@@ -355,7 +355,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 
 	// light translated to be in object coordinates, for lighting calculations
 	// lights are inputted in world coordinates
-	std::vector instLights = translateLights(lights, copied->getInvObjTransform());
+	std::vector instLights = translateLights(lights, copied->toObjectSpace());
 
 	copied = backFaceCulling(std::move(copied));
 
@@ -397,8 +397,12 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		if (debugFrame) { // print 3d points, renderTriangle prints 2d points
 			std::println(std::cerr, "Drawing tri {};\nnormals: {}.",
 			             copied->getDvecTri(triangle.triangle), triangle.normals);
-			std::println(std::cerr, "Object transform: {}, Camera transform: {}",
-			             copied->getInvObjTransform(), camera.getMatTransform());
+			std::println(std::cerr,
+			             "Object transform: {:.2f}\nInv obj: {:.2f}\n"
+			             "Camera transform: {:.2f}\nJoined: {:.2f}",
+			             copied->toObjectSpace(), copied->fromObjectSpace(),
+			             camera.fromCameraSpace(),
+			             copied->toObjectSpace() * camera.fromCameraSpace());
 		}
 		renderTriangle(
 		    canvas, depthBuffer,
@@ -410,15 +414,15 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[2]])),
 		    },
 		    triangle.normals, triangle.color, ambientLight, copied->getSpecular(), camera,
-		    (copied->getInvObjTransform() * camera.getMatTransform()), instLights);
+		    (copied->toObjectSpace() * camera.fromCameraSpace()), instLights);
 	}
 }
 
 void renderScene(SextantDrawing& canvas, const Scene& scene) {
 	/*Transform test{
-		{10, 12, 13},
-        glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0), {1,  1,  1 }
-    };
+	    {10, 12, 13},
+	    glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0), {1,  1,  1 }
+	};
 	// dvec3 myVec = {0, 1, 2};
 	dvec3 myVec = origin;
 	dvec3 translatedTest = canonicalize(parseTransform(test) * toHomogenous(myVec));
@@ -439,10 +443,10 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 		}
 	}
 
-	if (debugFrame) std::println(std::cerr, "camera at {}", scene.camera.getInvTransform());
+	if (debugFrame) std::println(std::cerr, "camera at {}", scene.camera.toCameraSpace());
 
 	std::vector<std::shared_ptr<Light>> translatedLights =
-	    translateLights(scene.lights, scene.camera.getInvTransform());
+	    translateLights(scene.lights, scene.camera.toCameraSpace());
 
 	for (std::shared_ptr<Light> lightPtr : translatedLights) {
 		dvec3 lightDir = lightPtr->getDirection(origin);

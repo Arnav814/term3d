@@ -48,6 +48,9 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 
 		if (debugFrame) {
 			std::print(std::cerr, "[light from vec {:.2f}:", lightDir);
+			std::print(std::cerr, "cam to point:{:.2f}, ", camToPoint);
+			std::print(std::cerr, "point:{:.2f}, ", point);
+			std::print(std::cerr, "camera:{:.2f}, ", camera);
 			std::print(std::cerr, "normal:{:.2f}, ", normal);
 		}
 
@@ -151,7 +154,8 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
 
 	dvec3 camPosInObjCoords = canonicalize(camToObj * toHomogenous(origin));
-	if (debugFrame) std::println(std::cerr, "drawing tri: {}, cam @ {:.2f}", points, camPosInObjCoords);
+	if (debugFrame)
+		std::println(std::cerr, "drawing tri: {}, cam @ {:.2f}", points, camPosInObjCoords);
 
 	// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
@@ -261,8 +265,10 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 				//"Reversed does not match."); #endif
 
 				if (debugFrame)
-					std::println(std::cerr, "normal: {}, cam to point: {}, depth: {}, lighting: {}",
-					             normal, camToDrawnPoint, depth, lighting);
+					std::println(
+					    std::cerr,
+					    "normal: {:.2f}, cam to point: {:.2f}, depth: {:.2f}, lighting: {:.2f}",
+					    normal, camToDrawnPoint, depth, lighting);
 
 				putBufPixel(depthBuffer, {x, y}, (float)invDepth);
 				putPixel(canvas, SextantCoord(y, x), Color(color.category, newColor));

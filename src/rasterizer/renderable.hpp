@@ -167,13 +167,13 @@ class InstanceRef3D {
 	    : object3d(object3d), transform(tr) {}
 
 	// parses to a matrix
-	const dmat4& getObjTransform() const {
+	const dmat4& fromObjectSpace() const {
 		if (not this->cachedTransform.has_value())
 			this->cachedTransform = parseTransform(this->transform);
 		return this->cachedTransform.value();
 	};
 
-	const dmat4& getInvObjTransform() const {
+	const dmat4& toObjectSpace() const {
 		if (not this->cachedInvTransform.has_value())
 			this->cachedInvTransform = parseTransform(invertTransform(this->transform));
 		return this->cachedInvTransform.value();
@@ -202,7 +202,7 @@ class InstanceSC3D {
 	InstanceSC3D(const InstanceRef3D& ref)
 	    : points(ref.object3d->getPoints()), triangles(ref.object3d->getTriangles()),
 	      transform(ref.transform), specular(ref.object3d->getSpecular()),
-	      cachedTransform(ref.getObjTransform()), cachedSphere(ref.getBoundingSphere()) {}
+	      cachedTransform(ref.fromObjectSpace()), cachedSphere(ref.getBoundingSphere()) {}
 
 	InstanceSC3D(const InstanceSC3D& inst)
 	    : points(inst.points), triangles(inst.triangles), transform(inst.transform),
@@ -273,13 +273,13 @@ class InstanceSC3D {
 	double getSpecular() const { return this->specular; }
 
 	// parses to a matrix
-	const dmat4& getObjTransform() const {
+	const dmat4& fromObjectSpace() const {
 		if (not this->cachedTransform.has_value())
 			this->cachedTransform = parseTransform(this->transform);
 		return this->cachedTransform.value();
 	};
 
-	const dmat4& getInvObjTransform() const {
+	const dmat4& toObjectSpace() const {
 		if (not this->cachedInvTransform.has_value())
 			this->cachedInvTransform = parseTransform(invertTransform(this->transform));
 		return this->cachedInvTransform.value();

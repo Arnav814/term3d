@@ -114,7 +114,7 @@ Transform decompose(dmat4 mat);
 
 Transform invertTransform(const Transform& transform);
 
-struct Camera {
+class Camera {
   private:
 	dmat4 invTransform;
 	dmat4 matTransform;
@@ -152,9 +152,9 @@ struct Camera {
 	// quite slow, so don't call often
 	const Transform getTransform() { return decompose(this->matTransform); }
 
-	const dmat4& getInvTransform() const { return this->invTransform; }
+	const dmat4& toCameraSpace() const { return this->invTransform; }
 
-	const dmat4& getMatTransform() const { return this->matTransform; }
+	const dmat4& fromCameraSpace() const { return this->matTransform; }
 
 	std::vector<Plane> getClippingPlanes() const;
 };
