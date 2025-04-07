@@ -44,7 +44,7 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 	dvec3 camToPoint = point - camera;
 
 	for (const std::shared_ptr<const Light> light : lights) {
-		dvec3 lightDir = light->getDirection(camToPoint);
+		dvec3 lightDir = light->getDirection(point);
 
 		if (debugFrame) {
 			std::print(std::cerr, "[light from vec {:.2f}:", lightDir);
