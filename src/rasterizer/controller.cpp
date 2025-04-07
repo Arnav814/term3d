@@ -118,13 +118,13 @@ void renderLoop(notcurses* nc, ncplane* plane, const bool& exitRequested) {
 		if (frameIndicator)
 			finalDrawing.set(
 			    SextantCoord{
-			        0, finalDrawing.getWidth() - 1
+			        finalDrawing.getHeight() - 1, 0
             },
 			    Color{Category{false, 1}, RGBA{255, 255, 255, 255}});
 		else
 			finalDrawing.set(
 			    SextantCoord{
-			        0, finalDrawing.getWidth() - 1
+			        finalDrawing.getHeight() - 1, 0
             },
 			    Color{Category{false, 1}, RGBA{0, 0, 0, 255}});
 

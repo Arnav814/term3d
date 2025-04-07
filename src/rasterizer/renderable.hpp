@@ -35,7 +35,7 @@ inline void validateTri(const ColoredTriangle& tri) {
 	});
 	forAllPairs(tri.normals, [](const std::pair<dvec3, dvec3> normalPair) {
 		dvec3 sum = normalPair.first + normalPair.second;
-		assertGt(abs(sum.x) + abs(sum.y) + abs(sum.z), 0.001,
+		assertGt(std::abs(sum.x) + std::abs(sum.y) + std::abs(sum.z), 0.001,
 		         "Normals can't point directly away from each other.");
 	});
 }

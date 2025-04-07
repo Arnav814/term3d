@@ -48,16 +48,16 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 
 		if (debugFrame) {
 			std::print(std::cerr, "[light from vec {:.2f}:", lightDir);
-			std::print(std::cerr, "normal:{}, ", normal);
+			std::print(std::cerr, "normal:{:.2f}, ", normal);
 		}
 
 		// diffuse
 		double normalDotLight = glm::dot(normal, glm::normalize(lightDir));
-		if (debugFrame) std::print(std::cerr, "ndl:{}, ", normalDotLight);
+		if (debugFrame) std::print(std::cerr, "ndl:{:.2f}, ", normalDotLight);
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight)
 			             / (glm::length(normal) * glm::length(lightDir));
-			if (debugFrame) std::print(std::cerr, "intensity:{}", intensity);
+			if (debugFrame) std::print(std::cerr, "intensity:{:.2f}", intensity);
 		} else if (debugFrame) {
 			std::print(std::cerr, "skipped");
 		}
@@ -81,7 +81,7 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 }
 
 void drawLine(SextantDrawing& canvas, ivec2 p0, ivec2 p1, const Color color) {
-	if (abs(p0.x - p1.x) > abs(p0.y - p1.y)) { // line is horizontalish
+	if (std::abs(p0.x - p1.x) > std::abs(p0.y - p1.y)) { // line is horizontalish
 		if (p0.x > p1.x) // make sure p0 is left of p1
 			std::swap(p0, p1);
 
@@ -151,7 +151,7 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	ivec2 canvasSize{canvas.getWidth(), canvas.getHeight()};
 
 	dvec3 camPosInObjCoords = canonicalize(camToObj * toHomogenous(origin));
-	if (debugFrame) std::println(std::cerr, "drawing tri: {}, cam @ {}", points, camPosInObjCoords);
+	if (debugFrame) std::println(std::cerr, "drawing tri: {}, cam @ {:.2f}", points, camPosInObjCoords);
 
 	// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
@@ -246,23 +246,23 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 
 				// point in object-relative coordinates
 				dvec3 pointObj = canonicalize(camToObj * toHomogenous(camToDrawnPoint));
+				if (debugFrame) std::print(std::cerr, "pointObj:{:.2f}, ", pointObj);
 
 				dvec3 normal = glm::normalize(dvec3{pixel.normalX, pixel.normalY, pixel.normalZ});
-				double lighting = computeLighting(pointObj, camPosInObjCoords, normal,
-				                                  specular, ambientLight, lights);
+				double lighting = computeLighting(pointObj, camPosInObjCoords, normal, specular,
+				                                  ambientLight, lights);
 				RGBA newColor = color.color * lighting;
 
 				// #ifndef NDEBUG
-				// 				ivec2 reversed = canonicalize(toHomogenous(camToDrawnPoint)
-				// 				                              *
+				//				ivec2 reversed = canonicalize(toHomogenous(camToDrawnPoint)
+				//				                              *
 				// camera.viewportTransform(canvasSize));
 				// assertEq(glm::to_string(reversed), glm::to_string(ivec2{x, y}),
-				// "Reversed does not match."); #endif
+				//"Reversed does not match."); #endif
 
 				if (debugFrame)
 					std::println(std::cerr, "normal: {}, cam to point: {}, depth: {}, lighting: {}",
-					             glm::to_string(normal), glm::to_string(camToDrawnPoint), depth,
-					             lighting);
+					             normal, camToDrawnPoint, depth, lighting);
 
 				putBufPixel(depthBuffer, {x, y}, (float)invDepth);
 				putPixel(canvas, SextantCoord(y, x), Color(color.category, newColor));

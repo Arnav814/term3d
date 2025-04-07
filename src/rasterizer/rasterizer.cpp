@@ -5,6 +5,7 @@
 #include "renderable.hpp"
 #include "structures.hpp"
 #include "triangles.hpp"
+#include <__ostream/print.h>
 #include <algorithm>
 #include <boost/multi_array.hpp>
 #include <boost/range/join.hpp>
@@ -17,6 +18,7 @@
 #include <glm/trigonometric.hpp>
 #include <memory>
 #include <ranges>
+#include <type_traits>
 #include <vector>
 
 #define cwhite Color(Category(true, 8), RGBA(255, 255, 255, 255))
@@ -81,7 +83,7 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
     };
 
 	for (auto& point : points) {
-		assertLt(abs(glm::length(point) - 1), 0.01, "Vector is wrong length.");
+		assertLt(std::abs(glm::length(point) - 1), 0.01, "Vector is wrong length.");
 	}
 
 	Object3D sphere{
@@ -176,7 +178,7 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	dvec3 axis = peakPoint - baseCenter;
 
 	// verify axis and baseSideOffset are perpendicular
-	if (not(abs(glm::dot(axis, baseSideOffset)) <= 0.001)) {
+	if (not(std::abs(glm::dot(axis, baseSideOffset)) <= 0.001)) {
 		throw std::runtime_error(
 		    "Base side, base center, and peak point must form a right triangle");
 	}
@@ -222,11 +224,12 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 [[nodiscard]] Scene initScene() {
 	Camera camera{1, 1, 1};
 	camera.setTransform(
-	    Transform({-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0));
+	    // Transform({-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0));
+	    Transform({-2, 4, -16}, glm::yawPitchRoll<double>(glm::radians(185.0), 0, 0), 1.0));
 	// camera.setTransform(
 	//     Transform({9, 0, 0}, glm::identity<glm::dmat3>(), 1.0));
 
-	double ambientLight = 0.1;
+	double ambientLight = 0.2;
 	Scene scene{{}, {}, {}, camera, Color(Category(true, 7), RGBA(0, 0, 0, 255)), ambientLight};
 
 	Object3D cube(
@@ -254,7 +257,7 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	        {{2, 6, 7}, ccyan, {dvec3{0, -1, 0}, dvec3{0, -1, 0}, dvec3{0, -1, 0}}},
 	        {{2, 7, 3}, ccyan, {dvec3{0, -1, 0}, dvec3{0, -1, 0}, dvec3{0, -1, 0}}},
 	    },
-	    1);
+	    -1);
 	scene.objects.push_back(std::make_shared<Object3D>(cube));
 
 	// Object3D sphere = makeSphere(ccyan, -1, 1.0, 3);
@@ -373,7 +376,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		glm::dvec2 canvasPoint;
 		// if the vertex if bad, just ignore it because clipping should have removed all triangles
 		// that use it
-		if (abs(homogenous2d.z) > 0.001) {
+		if (std::abs(homogenous2d.z) > 0.001) {
 			canvasPoint = canonicalize(homogenous2d);
 		} else {
 			canvasPoint = {0, 0};
@@ -391,9 +394,12 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 	}
 
 	for (const ColoredTriangle& triangle : copied->getTriangles()) {
-		if (debugFrame) // print 3d points, renderTriangle prints 2d points
+		if (debugFrame) { // print 3d points, renderTriangle prints 2d points
 			std::println(std::cerr, "Drawing tri {};\nnormals: {}.",
 			             copied->getDvecTri(triangle.triangle), triangle.normals);
+			std::println(std::cerr, "Object transform: {}, Camera transform: {}",
+			             copied->getInvObjTransform(), camera.getMatTransform());
+		}
 		renderTriangle(
 		    canvas, depthBuffer,
 		    {projected[triangle.triangle[0]], projected[triangle.triangle[1]],
@@ -404,11 +410,26 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 		        static_cast<float>(glm::length(copied->getPoints()[triangle.triangle[2]])),
 		    },
 		    triangle.normals, triangle.color, ambientLight, copied->getSpecular(), camera,
-		    (copied->getObjTransform() * camera.getMatTransform()), instLights);
+		    (copied->getInvObjTransform() * camera.getMatTransform()), instLights);
 	}
 }
 
 void renderScene(SextantDrawing& canvas, const Scene& scene) {
+	/*Transform test{
+		{10, 12, 13},
+        glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0), {1,  1,  1 }
+    };
+	// dvec3 myVec = {0, 1, 2};
+	dvec3 myVec = origin;
+	dvec3 translatedTest = canonicalize(parseTransform(test) * toHomogenous(myVec));
+	dvec3 otherWay = canonicalize(parseTransform(invertTransform(test)) * toHomogenous(myVec));
+	std::println(std::cerr, "initial: {:.2f}, translated: {:.2f}, and the other way: {:.2f}", myVec,
+	             translatedTest, otherWay);
+	std::println(std::cerr, "mat: {}", parseTransform(test));
+	std::println(std::cerr, "inv: {}", parseTransform(invertTransform(test)));
+
+	return;*/
+
 	boost::multi_array<float, 2> depthBuffer; // TODO: don't reallocate every frame
 	depthBuffer.resize(boost::extents[canvas.getHeight()][canvas.getWidth()]); // coords are (y, x)
 
@@ -418,8 +439,7 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 		}
 	}
 
-	if (debugFrame)
-		std::println(std::cerr, "camera at {}", glm::to_string(scene.camera.getInvTransform()));
+	if (debugFrame) std::println(std::cerr, "camera at {}", scene.camera.getInvTransform());
 
 	std::vector<std::shared_ptr<Light>> translatedLights =
 	    translateLights(scene.lights, scene.camera.getInvTransform());
