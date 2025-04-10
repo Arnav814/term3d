@@ -277,7 +277,7 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	                                            0.75
     }));
 
-	Object3D axes{{}, {}, 2}; // helpful visualization
+	Object3D axes{{}, {}, -1}; // helpful visualization
 	makePyramid(axes, cred, origin, {3, 0, 0}, {0, 0.5, 0}); // x axis
 	makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
 	makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0.5, 0}); // z axis
@@ -300,9 +300,9 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	// glm::yawPitchRoll<double>(0, 0, 0), 1.0
 	// }));
 
-	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.3, dvec3(1.0, 4.0, 4.0)));
-	// scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
-	scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
+	scene.lights.push_back(std::make_shared<DirectionalLight>(0.3, dvec3(1.0, 4.0, 4.0)));
+	scene.lights.push_back(std::make_shared<PointLight>(0.6, dvec3(2.0, 1.0, 0.0)));
+	// scene.lights.push_back(std::make_shared<PointLight>(2, dvec3(2.0, 1.0, 0.0)));
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.8, dvec3(1.0, 4.0, 4.0)));
 
 	return scene;
@@ -319,13 +319,21 @@ translateLights(const std::vector<std::shared_ptr<Light>>& lights, const dmat4 t
 			dvec3 position = asPoint->getPosition();
 			dvec4 homogenous = toHomogenous(position);
 			dvec3 newPoint = canonicalize(translation * homogenous);
+
 			out.push_back(
 			    std::make_shared<PointLight>(PointLight{asPoint->getIntensity(), newPoint}));
 			if (debugFrame)
-				std::println(std::cerr, "light at {} translated to {}", position, newPoint);
+				std::println(std::cerr, "Point light at {} translated to {}.", position, newPoint);
 		} else {
-			// do nothing for directional lights
-			// FIXME: this isn't right
+			auto asDirectional = dynamic_pointer_cast<const DirectionalLight>(light);
+			assertMsg(asDirectional != NULL, "WTF is this light?!");
+			dvec3 newDir = partialDecompose(translation).rotation * asDirectional->getDirection();
+
+			out.push_back(std::make_shared<DirectionalLight>(
+			    DirectionalLight{asDirectional->getIntensity(), newDir}));
+			if (debugFrame)
+				std::println(std::cerr, "Directional light from {} rotated to {}",
+				             asDirectional->getDirection(), newDir);
 		}
 	}
 

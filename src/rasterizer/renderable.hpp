@@ -321,7 +321,7 @@ class DirectionalLight : public Light {
 
   public:
 	DirectionalLight(double intensity, dvec3 direction)
-	    : intensity(intensity), direction(direction) {}
+	    : intensity(intensity), direction(glm::normalize(direction)) {}
 
 	virtual dvec3 getDirection([[maybe_unused]] dvec3 point) const { return this->direction; }
 

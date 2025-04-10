@@ -112,6 +112,23 @@ dmat4 parseTransform(const Transform& transform);
 bool isAffine(const dmat4& mat);
 Transform decompose(dmat4 mat);
 
+struct MatAndTranslation {
+	glm::dmat3 rotation; // also includes scaled
+	dvec3 translation;
+};
+
+// Much cheaper that full decompose.
+// Keeps the rotation and scale together.
+inline MatAndTranslation partialDecompose(const dmat4& mat) {
+	assertMsg(isAffine(mat), "Can't decompose a non-affine matrix.");
+	
+	dvec3 translation = {mat[3][0], mat[3][1], mat[3][2]};
+	glm::dmat3 rotation = mat; // just crop outside the top left 3x3
+
+	return {rotation, translation};
+}
+
+
 Transform invertTransform(const Transform& transform);
 
 class Camera {
