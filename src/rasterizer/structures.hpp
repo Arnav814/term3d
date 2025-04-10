@@ -1,18 +1,32 @@
 #ifndef STRUCTURES_HPP
 #define STRUCTURES_HPP
-#include "../drawing/setColor.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/gtx/dual_quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "../drawing/setColor.hpp"
+
 #include <glm/ext/matrix_double4x4.hpp>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/ext/vector_double4.hpp>
 #include <glm/ext/vector_int2.hpp>
+
 #include <vector>
+
+#define cwhite Color(Category(true, 8), RGBA(255, 255, 255, 255))
+#define cred Color(Category(true, 8), RGBA(255, 0, 0, 255))
+#define cgreen Color(Category(true, 8), RGBA(0, 255, 0, 255))
+#define cblue Color(Category(true, 8), RGBA(0, 0, 255, 255))
+#define cyellow Color(Category(true, 8), RGBA(255, 255, 0, 255))
+#define cmagenta Color(Category(true, 8), RGBA(255, 0, 255, 255))
+#define ccyan Color(Category(true, 8), RGBA(0, 255, 255, 255))
+#define cblack Color(Category(true, 8), RGBA(0, 0, 0, 255))
 
 using glm::dvec3, glm::dvec4, glm::ivec2, glm::dmat4;
 
-#define origin dvec3{0, 0, 0}
+#define origin \
+	dvec3 { \
+		0, 0, 0 \
+	}
 
 extern bool debugFrame;
 
@@ -121,13 +135,12 @@ struct MatAndTranslation {
 // Keeps the rotation and scale together.
 inline MatAndTranslation partialDecompose(const dmat4& mat) {
 	assertMsg(isAffine(mat), "Can't decompose a non-affine matrix.");
-	
+
 	dvec3 translation = {mat[3][0], mat[3][1], mat[3][2]};
 	glm::dmat3 rotation = mat; // just crop outside the top left 3x3
 
 	return {rotation, translation};
 }
-
 
 Transform invertTransform(const Transform& transform);
 
