@@ -1,5 +1,8 @@
 #include "renderable.hpp"
+
+#include "glm/geometric.hpp"
 #include "interpolate.hpp"
+
 #include <ranges>
 
 Sphere createBoundingSphere(const std::vector<dvec3>& points) {
@@ -116,13 +119,15 @@ void clipTriangle(InstanceSC3D& inst, const Plane& plane, const uint targetIdx) 
 
 		inst.setTriangle(targetIdx, NO_TRIANGLE);
 
-		dvec3 p1Normals{interpolateValue(normals[0].x, normals[1].x, p1Prime.t),
-		                interpolateValue(normals[0].y, normals[1].y, p1Prime.t),
-		                interpolateValue(normals[0].z, normals[1].z, p1Prime.t)};
+		dvec3 p1Normals =
+		    glm::normalize(dvec3{interpolateValue(normals[0].x, normals[1].x, p1Prime.t),
+		                         interpolateValue(normals[0].y, normals[1].y, p1Prime.t),
+		                         interpolateValue(normals[0].z, normals[1].z, p1Prime.t)});
 
-		dvec3 p2Normals{interpolateValue(normals[0].x, normals[2].x, p1Prime.t),
-		                interpolateValue(normals[0].y, normals[2].y, p1Prime.t),
-		                interpolateValue(normals[0].z, normals[2].z, p1Prime.t)};
+		dvec3 p2Normals =
+		    glm::normalize(dvec3{interpolateValue(normals[0].x, normals[2].x, p1Prime.t),
+		                         interpolateValue(normals[0].y, normals[2].y, p1Prime.t),
+		                         interpolateValue(normals[0].z, normals[2].z, p1Prime.t)});
 
 		inst.addTriangle({
 		    {p1Idx,     targetTri[1], targetTri[2]},

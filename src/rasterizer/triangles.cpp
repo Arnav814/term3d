@@ -1,10 +1,13 @@
 #include "triangles.hpp"
+
 #include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "interpolate.hpp"
 #include "renderable.hpp"
 #include "structures.hpp"
+
 #include <boost/multi_array.hpp>
+
 #include <limits>
 #include <memory>
 
@@ -60,9 +63,9 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 		if (normalDotLight > 0) { // ignore lights behind the surface
 			intensity += (light->getIntensity() * normalDotLight)
 			             / (glm::length(normal) * glm::length(lightDir));
-			if (debugFrame) std::print(std::cerr, "intensity:{:.2f}", intensity);
+			if (debugFrame) std::print(std::cerr, "intensity diffuse:{:.2f}, ", intensity);
 		} else if (debugFrame) {
-			std::print(std::cerr, "skipped");
+			std::print(std::cerr, "skipped diffuse, ");
 		}
 
 		// specular
@@ -74,7 +77,17 @@ static double computeLighting(const dvec3 point, const dvec3 camera, const dvec3
 				    light->getIntensity()
 				    * pow(reflectedDotExit / (glm::length(reflected) * glm::length(camToPoint)),
 				          specular);
+				if (debugFrame) {
+					std::print(std::cerr, "rde:{:.2f}, ", reflectedDotExit);
+					std::print(std::cerr, "reflected:{:.2f}, ", reflected);
+					std::print(std::cerr, "specular:{:.2f}, ", specular);
+					std::print(std::cerr, "intensity specular:{:.2f}, ", intensity);
+				}
+			} else if (debugFrame) {
+				std::print(std::cerr, "skipped specular, ");
 			}
+		} else if (debugFrame) {
+			std::print(std::cerr, "no specular");
 		}
 
 		if (debugFrame) std::print(std::cerr, "], ");
@@ -157,7 +170,7 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 	if (debugFrame)
 		std::println(std::cerr, "drawing tri: {}, cam @ {:.2f}", points, camPosInObjCoords);
 
-	// easier syntax
+		// easier syntax
 #define interpField(vec, field, x0, y0, x1, y1) \
 	do { \
 		interpolateField<decltype(vec)::value_type>((vec), &decltype(vec)::value_type::field, \

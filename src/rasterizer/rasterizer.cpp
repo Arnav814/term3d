@@ -1,21 +1,26 @@
 #include "rasterizer.hpp"
-#include "glm/ext/matrix_transform.hpp"
-#include "glm/ext/quaternion_geometric.hpp"
-#include "glm/geometric.hpp"
+
 #include "renderable.hpp"
 #include "structures.hpp"
 #include "triangles.hpp"
-#include <__ostream/print.h>
-#include <algorithm>
-#include <boost/multi_array.hpp>
-#include <boost/range/join.hpp>
-#include <cmath>
+#include "../util/floatComparisons.hpp"
+
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/ext/vector_double4.hpp>
 #include <glm/ext/vector_int2.hpp>
+#include <glm/geometric.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/trigonometric.hpp>
+
+#include <boost/multi_array.hpp>
+#include <boost/range/join.hpp>
+
+#include <__ostream/print.h>
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <ranges>
 #include <type_traits>
@@ -43,15 +48,18 @@ void splitTriangle(Object3D& object, uint triangleIdx, dvec3 newPoint) {
 
 	object.addTriangle({
 	    {triangle.triangle[0], triangle.triangle[1], newIdx},
-        triangle.color, {newVec}
+	    triangle.color,
+	    {newVec,               newVec,               newVec}
     });
 	object.addTriangle({
 	    {triangle.triangle[1], triangle.triangle[2], newIdx},
-        triangle.color, {newVec}
+	    triangle.color,
+	    {newVec,               newVec,               newVec}
     });
 	object.addTriangle({
 	    {triangle.triangle[2], triangle.triangle[0], newIdx},
-        triangle.color, {newVec}
+	    triangle.color,
+	    {newVec,               newVec,               newVec}
     });
 
 	// object.addTriangle({
@@ -70,20 +78,19 @@ void splitTriangle(Object3D& object, uint triangleIdx, dvec3 newPoint) {
 
 // approximate a sphere with an inscribed tetrahedron
 // more iterations == more triangles == more accurate
+// does not work
 Object3D makeSphere(Color color, double specular, double radius, uint iterations) {
 	// points for a unit sphere
 	// these are also the normals,
 	// and can be scaled to form the points
 	std::array<dvec3, 4> points{
-	    // FIXME: these are wrong
-	    dvec3{0,             1,             0          },
-        dvec3{0,             -1 / 2,        sqrt(3) / 2},
-        dvec3{-sqrt(3) / 2., -1. / sqrt(3), -0.5       },
-	    dvec3{sqrt(3) / 2.,  -1. / sqrt(3), -0.5       }
+	    dvec3{1,  1,  1 },
+        dvec3{-1, -1, 1 },
+        dvec3{-1, 1,  -1},
+        dvec3{1,  -1, -1}
     };
-
 	for (auto& point : points) {
-		assertLt(std::abs(glm::length(point) - 1), 0.01, "Vector is wrong length.");
+		point = glm::normalize(point);
 	}
 
 	Object3D sphere{
@@ -127,18 +134,18 @@ Object3D makeSphere(Color color, double specular, double radius, uint iterations
 		sphere.clearEmptyTris();
 
 #ifndef NDEBUG
-		for (const ColoredTriangle& tri : sphere.getTriangles()) {
-			Triangle<dvec3> trianglePoints = sphere.getDvecTri(tri.triangle);
-			Triangle<double> lengths{glm::distance(trianglePoints[0], trianglePoints[1]),
-			                         glm::distance(trianglePoints[1], trianglePoints[2]),
-			                         glm::distance(trianglePoints[2], trianglePoints[0])};
-			assertBetweenIncl(-0.1, lengths[0] - lengths[1], 0.1,
-			                  "All triangles should be equilateral in a sphere");
-			assertBetweenIncl(-0.1, lengths[1] - lengths[2], 0.1,
-			                  "All triangles should be equilateral in a sphere");
-			assertBetweenIncl(-0.1, lengths[2] - lengths[0], 0.1,
-			                  "All triangles should be equilateral in a sphere");
-		}
+		// for (const ColoredTriangle& tri : sphere.getTriangles()) {
+		// 	Triangle<dvec3> trianglePoints = sphere.getDvecTri(tri.triangle);
+		// 	Triangle<double> lengths{glm::distance(trianglePoints[0], trianglePoints[1]),
+		// 	                         glm::distance(trianglePoints[1], trianglePoints[2]),
+		// 	                         glm::distance(trianglePoints[2], trianglePoints[0])};
+		// 	assertBetweenIncl(-0.1, lengths[0] - lengths[1], 0.1,
+		// 	                  "All triangles should be equilateral in a sphere");
+		// 	assertBetweenIncl(-0.1, lengths[1] - lengths[2], 0.1,
+		// 	                  "All triangles should be equilateral in a sphere");
+		// 	assertBetweenIncl(-0.1, lengths[2] - lengths[0], 0.1,
+		// 	                  "All triangles should be equilateral in a sphere");
+		// }
 #endif
 	}
 
@@ -224,8 +231,7 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 [[nodiscard]] Scene initScene() {
 	Camera camera{1, 1, 1};
 	camera.setTransform(
-	    // Transform({-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0));
-	    Transform({-2, 4, -16}, glm::yawPitchRoll<double>(glm::radians(185.0), 0, 0), 1.0));
+	    Transform({-3, 1, 0}, glm::yawPitchRoll<double>(glm::radians(-30.0), 0, 0), 1.0));
 	// camera.setTransform(
 	//     Transform({9, 0, 0}, glm::identity<glm::dmat3>(), 1.0));
 
@@ -257,22 +263,21 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	        {{2, 6, 7}, ccyan, {dvec3{0, -1, 0}, dvec3{0, -1, 0}, dvec3{0, -1, 0}}},
 	        {{2, 7, 3}, ccyan, {dvec3{0, -1, 0}, dvec3{0, -1, 0}, dvec3{0, -1, 0}}},
 	    },
-	    -1);
+	    3);
 	scene.objects.push_back(std::make_shared<Object3D>(cube));
 
-	// Object3D sphere = makeSphere(ccyan, -1, 1.0, 3);
+	// Object3D sphere = makeSphere(ccyan, -1, 1.0, 1);
 	// scene.objects.push_back(std::make_shared<Object3D>(sphere));
 
-	scene.instances.push_back(
-	    InstanceRef3D(std::make_shared<Object3D>(cube),
-	                  {
-	                      {-1.5, 0, 7},
-	                      glm::identity<dmat4>(),
-	                      // glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0),
-	                      0.75
+	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(cube),
+	                                        {
+	                                            {-1.5, 0, 7},
+	                                            // glm::identity<dmat4>(),
+	                                            glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0),
+	                                            0.75
     }));
 
-	Object3D axes{{}, {}, -1}; // helpful visualization
+	Object3D axes{{}, {}, 2}; // helpful visualization
 	makePyramid(axes, cred, origin, {3, 0, 0}, {0, 0.5, 0}); // x axis
 	makePyramid(axes, cgreen, origin, {0, 3, 0}, {0.5, 0, 0}); // y axis
 	makePyramid(axes, cblue, origin, {0, 0, 3}, {0, 0.5, 0}); // z axis
@@ -280,13 +285,12 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 
 	scene.instances.push_back(InstanceRef3D(std::make_shared<Object3D>(axes), {}));
 
-	scene.instances.push_back(
-	    InstanceRef3D(std::make_shared<Object3D>(cube),
-	                  {
-	                      {1.25, 2.5, 7.5},
-	                      glm::identity<dmat4>(),
-	                      // glm::yawPitchRoll<double>(glm::radians(195.0), 0, 0),
-	                      1.0
+	scene.instances.push_back(InstanceRef3D(
+	    std::make_shared<Object3D>(cube), {
+	                                          {1.25, 2.5, 7.5},
+	                                          // glm::identity<dmat4>(),
+	                                          glm::yawPitchRoll<double>(glm::radians(195.0), 0, 0),
+	                                          1.0
     }));
 
 	// scene.instances.push_back(
@@ -294,12 +298,6 @@ void makePyramid(Object3D& object, const Color& color, const dvec3& baseCenter,
 	//                   {
 	//                       {2, 0, 7},
 	// glm::yawPitchRoll<double>(0, 0, 0), 1.0
-	// }));
-
-	// scene.instances.push_back(InstanceRef3D(
-	//     std::make_shared<Object3D>(cube), {
-	//                                           {2, 1, 0},
-	// glm::yawPitchRoll<double>(0, 0, 0), 0.5
 	// }));
 
 	// scene.lights.push_back(std::make_shared<DirectionalLight>(0.3, dvec3(1.0, 4.0, 4.0)));
@@ -453,6 +451,7 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 		dvec4 homogenous = {lightDir.x, lightDir.y, lightDir.z, 1};
 		dvec3 homogenous2d =
 		    scene.camera.viewportTransform({canvas.getWidth(), canvas.getHeight()}) * homogenous;
+		if (floatCmp(homogenous2d.z, 0.0)) continue;
 		ivec2 point = canonicalize(homogenous2d);
 
 		float dist = glm::length(lightDir);
