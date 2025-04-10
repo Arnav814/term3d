@@ -144,21 +144,6 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 }
 
 void renderScene(SextantDrawing& canvas, const Scene& scene) {
-	/*Transform test{
-	    {10, 12, 13},
-	    glm::yawPitchRoll<double>(glm::radians(90.0), 0, 0), {1,  1,  1 }
-	};
-	// dvec3 myVec = {0, 1, 2};
-	dvec3 myVec = origin;
-	dvec3 translatedTest = canonicalize(parseTransform(test) * toHomogenous(myVec));
-	dvec3 otherWay = canonicalize(parseTransform(invertTransform(test)) * toHomogenous(myVec));
-	std::println(std::cerr, "initial: {:.2f}, translated: {:.2f}, and the other way: {:.2f}", myVec,
-	             translatedTest, otherWay);
-	std::println(std::cerr, "mat: {}", parseTransform(test));
-	std::println(std::cerr, "inv: {}", parseTransform(invertTransform(test)));
-
-	return;*/
-
 	boost::multi_array<float, 2> depthBuffer; // TODO: don't reallocate every frame
 	depthBuffer.resize(boost::extents[canvas.getHeight()][canvas.getWidth()]); // coords are (y, x)
 
@@ -173,25 +158,27 @@ void renderScene(SextantDrawing& canvas, const Scene& scene) {
 	std::vector<std::shared_ptr<Light>> translatedLights =
 	    translateLights(scene.lights, scene.camera.toCameraSpace());
 
-	for (std::shared_ptr<Light> lightPtr : translatedLights) {
-		dvec3 lightDir = lightPtr->getDirection(origin);
-		dvec4 homogenous = {lightDir.x, lightDir.y, lightDir.z, 1};
-		dvec3 homogenous2d =
-		    scene.camera.viewportTransform({canvas.getWidth(), canvas.getHeight()}) * homogenous;
-		if (floatCmp(homogenous2d.z, 0.0)) continue;
-		ivec2 point = canonicalize(homogenous2d);
+	if (debugFrame)
+		for (std::shared_ptr<Light> lightPtr : translatedLights) {
+			dvec3 lightDir = lightPtr->getDirection(origin);
+			dvec4 homogenous = {lightDir.x, lightDir.y, lightDir.z, 1};
+			dvec3 homogenous2d =
+			    scene.camera.viewportTransform({canvas.getWidth(), canvas.getHeight()})
+			    * homogenous;
+			if (floatCmp(homogenous2d.z, 0.0)) continue;
+			ivec2 point = canonicalize(homogenous2d);
 
-		float dist = glm::length(lightDir);
+			float dist = glm::length(lightDir);
 
-		renderTriangle(canvas, depthBuffer,
-		               {
-		                   point + ivec2{2,  0 },
-                             point + ivec2{-1, -1},
-                             point + ivec2{-1, 1 }
-        },
-		               {dist, dist, dist}, {dvec3{-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}}, cblack, 0.5,
-		               -1, scene.camera, glm::identity<dmat4>(), {});
-	}
+			renderTriangle(canvas, depthBuffer,
+			               {
+			                   point + ivec2{2,  0 },
+                                 point + ivec2{-1, -1},
+                                 point + ivec2{-1, 1 }
+            },
+			               {dist, dist, dist}, {dvec3{-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}}, cblack,
+			               0.5, -1, scene.camera, glm::identity<dmat4>(), {});
+		}
 
 	for (const InstanceRef3D& objectInst : scene.instances) {
 		renderInstance(canvas, depthBuffer, scene.camera, objectInst, scene.ambientLight,
