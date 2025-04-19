@@ -67,6 +67,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 
 	dmat4 toCam = camera.toCameraSpace() * objectInst.fromObjectSpace();
 
+	// translate to camera space
 	for (uint vertexIdx = 0; vertexIdx < copied->getPoints().size(); vertexIdx++) {
 		dvec3 vertex = copied->getPoint(vertexIdx);
 		dvec4 homogenous = {vertex.x, vertex.y, vertex.z, 1};
@@ -87,6 +88,7 @@ static void renderInstance(SextantDrawing& canvas, boost::multi_array<float, 2>&
 	std::vector<ivec2> projected;
 	projected.reserve(copied->getPoints().size());
 
+	// project the points
 	for (const dvec3& vertex : copied->getPoints()) {
 		// skip missing points
 		if (vertex == NO_POINT) {

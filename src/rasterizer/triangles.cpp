@@ -1,5 +1,6 @@
 #include "triangles.hpp"
 
+#include "glm/ext/quaternion_geometric.hpp"
 #include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "interpolate.hpp"
@@ -8,6 +9,7 @@
 
 #include <boost/multi_array.hpp>
 
+#include <cmath>
 #include <limits>
 #include <memory>
 
@@ -248,12 +250,12 @@ void drawFilledTriangle(SextantDrawing& canvas, boost::multi_array<float, 2>& de
 			    < invDepth) {
 				if (debugFrame) std::print(std::cerr, "pixel ({}, {}): ", x, y);
 
-				dvec3 viewportPoint{(x * camera.viewportWidth) / canvasSize.x,
-				                    (y * camera.viewportHeight) / canvasSize.y,
+				dvec3 viewportPoint{x * camera.viewportWidth / canvasSize.x,
+				                    y * camera.viewportHeight / canvasSize.y,
 				                    camera.viewportDistance};
 
 				double depth = 1. / invDepth;
-				double scaleFactor = depth / camera.viewportDistance;
+				double scaleFactor = depth / glm::length(viewportPoint);
 				// because the camera is at {0, 0, 0},
 				// the camera to point vector is the same as the point itself
 				dvec3 camToDrawnPoint{viewportPoint.x * scaleFactor, viewportPoint.y * scaleFactor,

@@ -1,8 +1,11 @@
 #include "structures.hpp"
+
 #include "../util/floatComparisons.hpp"
 #include "../util/formatters.hpp"
-#include <csignal>
+
 #include <glm/matrix.hpp>
+
+#include <csignal>
 
 dmat4 parseTransform(const Transform& transform) {
 	dmat4 scaleMatrix{1}; // identity matrix
@@ -136,14 +139,15 @@ Transform invertTransform(const Transform& transform) {
     };
 }
 
-std::vector<Plane> Camera::getClippingPlanes() const { // TODO: allow changing FOV
+std::vector<Plane> Camera::getClippingPlanes() const {
 	return {
 	    // four planes that define the "cone" of clipping
-	    {{glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)},  0},
-	    {{-glm::inversesqrt(2.0), 0, glm::inversesqrt(2.0)}, 0},
-	    {{0, glm::inversesqrt(2.0), glm::inversesqrt(2.0)},  0},
-	    {{0, -glm::inversesqrt(2.0), glm::inversesqrt(2.0)}, 0},
+	    // no, the width/height and distance are not swapped, they are supposed to be this way
+	    {glm::normalize(dvec3{this->viewportDistance, 0, this->viewportWidth}),   0                             },
+	    {glm::normalize(dvec3{-this->viewportDistance, 0, this->viewportWidth}),  0                             },
+	    {glm::normalize(dvec3{0, this->viewportDistance, this->viewportHeight}),  0                             },
+	    {glm::normalize(dvec3{0, -this->viewportDistance, this->viewportHeight}), 0                             },
 	    // for the viewport
-	    {{0, 0, 1},	                                      1}  // negate till it works
-	};
+	    {{0, 0, 1},	                                                           this->viewportDistance + SMALL}
+    };
 }

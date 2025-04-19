@@ -159,6 +159,7 @@ class Camera {
 	      viewportWidth(viewportWidth), viewportHeight(viewportHeight),
 	      viewportDistance(viewportDistance) {}
 
+	// converts a point in camera space to a point on the viewport
 	glm::dmat3x4 viewportTransform(const ivec2 canvasSize) const {
 		glm::dmat3x4 matrix{1};
 		matrix[0][0] = viewportDistance * canvasSize.x / viewportWidth;
