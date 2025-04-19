@@ -45,7 +45,7 @@ struct std::formatter<glm::mat<Cols, Rows, MatType, Qual>> : std::formatter<MatT
 			out = std::format_to(out, "(");
 			for (uint col = 0; col < Cols; col++) {
 				if (col != 0) out = std::format_to(out, ", ");
-				std::formatter<MatType>::format(val[row][col], ctx);
+				std::formatter<MatType>::format(val[col][row], ctx);
 			}
 			out = std::format_to(out, ")");
 		}
